@@ -5,6 +5,7 @@
 ** Added
 
 - =.gitignore=
+- =Cask=
 - =CHANGELOG.org=
 - =LICENSE= (GPL-3.0)
 - =org-gtd.el=
