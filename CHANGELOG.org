@@ -1,0 +1,10 @@
+#+TITLE: Changelog
+
+* Unreleased
+
+** Added
+
+- =.gitignore=
+- =CHANGELOG.org=
+- =LICENSE= (GPL-3.0)
+- =README.md=
