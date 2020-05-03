@@ -7,4 +7,5 @@
 - =.gitignore=
 - =CHANGELOG.org=
 - =LICENSE= (GPL-3.0)
+- =org-gtd.el=
 - =README.org=
