@@ -31,12 +31,31 @@
 ;;; Code:
 
 
+(eval-when-compile (require 'subr-x))
+
 (require 'dash)
 (require 'transient)
 
 
 ;;; Classes
 
+
+(defclass org-gtd-transient--display (transient-child)
+  ((id :initarg :id :documentation "ID of the component. Must be unique for the current prefix.")
+   (description :initarg :description :documentation "Description of the component.")
+   (command :initarg :command :initform ignore)
+   (format :initarg :format :initform "%d %v")
+   (value :initform nil)
+   (combine-tactic :initarg :combine-tactic :initform replace
+                   :documentation "Tactic for combining old and new values.
+
+Can be one of `replace' or `merge'. `replace' means to replace the existing value
+with the new value. `merge' means to try and combine the old and new values; for lists,
+`merge' will cause the new value to be appended to the old, unless `multi-value' is non-NIL,
+in which case the new and old values are merged as lists.")
+   (multi-value :initarg :multi-value :initform nil :type booleanp
+                :documentation "If set to T, will treat a list of values as being a list of values rather than a single value when setting. Set this to T if the user can enter multiple values at a time."))
+  :documentation "Class for transient components that hold values.")
 
 (defclass org-gtd-transient--value (transient-variable)
   ((default :initarg :default)
@@ -54,6 +73,11 @@ in which case the new and old values are merged as lists."))
 
 ;;; Init
 
+
+(cl-defmethod transient-init-scope ((_   org-gtd-transient--display))
+  "Noop." nil)
+
+(cl-defmethod transient--init-suffix-key ((obj org-gtd-transient--display)))
 
 (cl-defmethod transient-init-value ((obj org-gtd-transient--value))
   (when (slot-boundp obj :default)
@@ -110,6 +134,19 @@ in which case the new and old values are merged as lists."))
 ;;; Set
 
 
+(cl-defmethod transient-infix-set ((obj org-gtd-transient--display) value &optional tactic)
+  (let ((tactic (or tactic (oref obj combine-tactic)))
+        (old-val (oref obj value)))
+    (if (eq tactic 'replace)
+        ;; replace tactic: entire value gets replaced
+        (oset obj value value)
+      ;; merge tactic
+      (if (oref obj multi-value)
+          ;; value is a list (multi-value), so we concatenate
+          (oset obj value (-concat old-val value))
+        ;; value is not a list, so we append (merge tactic forces the result to be a list)
+        (oset obj value (-snoc old-val value))))))
+
 (cl-defmethod transient-infix-set ((obj org-gtd-transient--value) value)
   (let ((old-val (oref obj value)))
     (if (eq (oref obj combine-tactic) 'replace)
@@ -125,6 +162,27 @@ in which case the new and old values are merged as lists."))
 
 ;;; Draw
 
+
+(cl-defmethod transient-format ((obj org-gtd-transient--display))
+  "Return a string generated using OBJ's `format'.
+%d is formatted using `transient-format-description'.
+%v is formatted using `transient-format-value'."
+  (format-spec (oref obj format)
+               `((?d . ,(transient-format-description obj))
+                 (?v . ,(transient-format-value obj)))))
+
+(cl-defmethod transient-format-description ((obj org-gtd-transient--display))
+  "Format the description by calling the next method.  If the result
+doesn't use the `face' property at all, then apply the face
+`transient-heading' to the complete string."
+  (when-let ((desc (cl-call-next-method obj)))
+    (if (text-property-not-all 0 (length desc) 'face nil desc)
+        desc
+      (propertize desc 'face 'transient-heading))))
+
+(cl-defmethod transient-format-value ((obj org-gtd-transient--display))
+  (let ((val (oref obj value)))
+    (propertize (format "%s" val) 'face (if val 'transient-value 'transient-inactive-value))))
 
 (cl-defmethod transient-format-description ((obj org-gtd-transient--value))
   (oref obj description))
