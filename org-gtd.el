@@ -40,7 +40,25 @@
 ;;; Classes
 
 
-(defclass org-gtd-transient--display (transient-child)
+(defclass org-gtd-transient--component ()
+  (())
+  :documentation "Abstract class for individual components."
+  :abstract t)
+
+(defclass org-gtd-transient--targeted (org-gtd-transient--component)
+  ((target-id :initarg :target-id :documentation "Identifier of the target component."))
+  :documentation "Class for components which can target others."
+  :abstract t)
+
+(cl-defgeneric org-gtd-transient--target (obj)
+  "Determine the target component of OBJ.")
+
+(cl-defgeneric org-gtd-transient--set-target-value (obj val &optional tactic)
+  "Set the value of OBJ's target to VAL.
+
+TACTIC, if specified, determines how to combine existing and new values.")
+
+(defclass org-gtd-transient--display (org-gtd-transient--component transient-child)
   ((id :initarg :id :documentation "ID of the component. Must be unique for the current prefix.")
    (description :initarg :description :documentation "Description of the component.")
    (command :initarg :command :initform ignore)
@@ -57,9 +75,8 @@ in which case the new and old values are merged as lists.")
                 :documentation "If set to T, will treat a list of values as being a list of values rather than a single value when setting. Set this to T if the user can enter multiple values at a time."))
   :documentation "Class for transient components that hold values.")
 
-(defclass org-gtd-transient--setter (transient-suffix)
-  ((target-id :initarg :target-id :documentation "Id of the infix this targets.")
-   (transient :initarg :transient :initform 'transient--do-call))
+(defclass org-gtd-transient--setter (transient-suffix org-gtd-transient--targeted)
+  ((transient :initarg :transient :initform 'transient--do-call))
   :documentation "Class for suffixes that set the value of other infixes.")
 
 (defclass org-gtd-transient--value (transient-variable)
@@ -87,6 +104,40 @@ in which case the new and old values are merged as lists."))
 (cl-defmethod transient-init-value ((obj org-gtd-transient--value))
   (when (slot-boundp obj 'default)
     (oset obj value (oref obj default))))
+
+
+;;; Targeting
+
+
+(defun org-gtd-transient--current-components ()
+  "Return a list of all the components in the current prefix."
+  (cl-labels ((s (def)
+                 (cond
+                  ((stringp def) nil)
+                  ((listp def) (cl-mapcan #'s def))
+                  ((org-gtd-transient--component--eieio-childp def)
+                   (list def))
+                  ((transient-group--eieio-childp def)
+                   (cl-mapcan #'s (oref def suffixes)))
+                  ((transient-suffix--eieio-childp def)
+                   (list def)))))
+    (cl-mapcan #'s transient--layout)))
+
+(defun org-gtd-transient--components-with-ids ()
+  "Get an alist of components for the current prefix, paired with their ID.
+
+Only components with an ID specified will appear in the alist."
+  (let ((components (org-gtd-transient--current-components)))
+    (-non-nil (mapcar (lambda (obj) (when (and (slot-exists-p obj 'id) (slot-boundp obj 'id)) (cons (oref obj id) obj))) components))))
+
+(defun org-gtd-transient--get-object-for-id (id)
+  "Get the object associated with the id ID."
+  (alist-get id (org-gtd-transient--components-with-ids) nil nil #'equal))
+
+(cl-defmethod org-gtd-transient--target ((obj org-gtd-transient--targeted))
+  "Get the target of the current object."
+  (let* ((target-id (oref obj target-id)))
+    (org-gtd-transient--get-object-for-id target-id)))
 
 
 ;; Read
@@ -163,6 +214,12 @@ in which case the new and old values are merged as lists."))
           (oset obj value (-concat old-val value))
         ;; value is not a list, so we append (merge tactic forces the result to be a list)
         (oset obj value (-snoc old-val value))))))
+
+(cl-defmethod org-gtd-transient--set-target-value ((obj org-gtd-transient--setter) val &optional tactic)
+  "Set the value of the current setter target to VAL.
+
+If specified, use TACTIC instead of the merge tactic of the setter's target."
+  (transient-infix-set (org-gtd-transient--target obj) val tactic))
 
 
 ;;; Draw
