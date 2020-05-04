@@ -65,22 +65,6 @@ Objects that inherit from this class are not expected to provide a key."
 
 TACTIC, if specified, determines how to combine existing and new values.")
 
-(defclass org-gtd-transient--value (org-gtd-transient--non-interactive)
-  ((default :initarg :default)
-   (id :initarg :id :documentation "ID of the component. Must be unique for the current prefix.")
-   (command :initarg :command :initform ignore)
-   (value :initform nil)
-   (combine-tactic :initarg :combine-tactic :initform replace
-                   :documentation "Tactic for combining old and new values.
-
-Can be one of `replace' or `merge'. `replace' means to replace the existing value
-with the new value. `merge' means to try and combine the old and new values; for lists,
-`merge' will cause the new value to be appended to the old, unless `multi-value' is non-NIL,
-in which case the new and old values are merged as lists.")
-   (multi-value :initarg :multi-value :initform nil :type booleanp
-                :documentation "If set to T, will treat a list of values as being a list of values rather than a single value when setting. Set this to T if the user can enter multiple values at a time."))
-  :documentation "Class for components that hold a value.")
-
 (defclass org-gtd-transient--display (org-gtd-transient--targeted org-gtd-transient--non-interactive)
   ((description :initarg :description :documentation "Description of the component.")
    (command :initarg :command :initform ignore)
@@ -98,78 +82,62 @@ in which case the new and old values are merged as lists.")
 (cl-defmethod transient-init-scope ((_ org-gtd-transient--component))
   "Noop." nil)
 
-(cl-defmethod transient--init-suffix-key ((_ org-gtd-transient--non-interactive)))
+(defun org-gtd-transient--var-env ()
+  "Get the variable environment for the current prefix."
+  (oref transient--prefix scope))
 
-(cl-defmethod transient-init-value ((obj org-gtd-transient--value))
-  (when (slot-boundp obj 'default)
-    (oset obj value (oref obj default))))
+(defun org-gtd-transient--set-var-env (env)
+  "Set the current variable environment to ENV."
+  (oset transient--prefix scope env))
+
+(defun org-gtd-transient--var-val (var)
+  "Get the value of VAR in the current environment."
+  (lax-plist-get (org-gtd-transient--var-env) var))
+
+(defun org-gtd-transient--set-var-val (var val)
+  "Set the value of VAR to VAL in the current environment."
+  (org-gtd-transient--set-var-env
+   (lax-plist-put (org-gtd-transient--var-env) var val)))
+
+(defun org-gtd-transient--initialize-variable (var)
+  "Initialize VAR for the current prefix environment."
+  (let ((var-vals (org-gtd-transient--var-env)))
+    (unless (plist-member var-vals var)
+      (org-gtd-transient--set-var-val var nil))))
+
+(cl-defmethod transient-init-scope ((obj org-gtd-transient--targeted))
+  (org-gtd-transient--initialize-variable (oref obj target-id)))
+
+(cl-defmethod transient--init-suffix-key ((_ org-gtd-transient--non-interactive)))
 
 
 ;;; Targeting
 
 
-(defun org-gtd-transient--current-components ()
-  "Return a list of all the components in the current prefix."
-  (cl-labels ((s (def)
-                 (cond
-                  ((stringp def) nil)
-                  ((listp def) (cl-mapcan #'s def))
-                  ((org-gtd-transient--component--eieio-childp def)
-                   (list def))
-                  ((transient-group--eieio-childp def)
-                   (cl-mapcan #'s (oref def suffixes)))
-                  ((transient-suffix--eieio-childp def)
-                   (list def)))))
-    (cl-mapcan #'s transient--layout)))
-
-(defun org-gtd-transient--components-with-ids ()
-  "Get an alist of components for the current prefix, paired with their ID.
-
-Only components with an ID specified will appear in the alist."
-  (let ((components (org-gtd-transient--current-components)))
-    (-non-nil (mapcar (lambda (obj) (when (and (slot-exists-p obj 'id) (slot-boundp obj 'id)) (cons (oref obj id) obj))) components))))
-
-(defun org-gtd-transient--get-object-for-id (id)
-  "Get the object associated with the id ID."
-  (alist-get id (org-gtd-transient--components-with-ids) nil nil #'equal))
-
 (cl-defmethod org-gtd-transient--target ((obj org-gtd-transient--targeted))
   "Get the target of the current object."
-  (let* ((target-id (oref obj target-id)))
-    (org-gtd-transient--get-object-for-id target-id)))
+  (oref obj target-id))
+
+(defun org-gtd-transient--target-value (obj)
+  "Get the value of the target of OBJ."
+  (org-gtd-transient--var-val (org-gtd-transient--target obj)))
 
 
 ;;; Set
 
 
-(cl-defmethod transient-infix-set ((obj org-gtd-transient--value) value &optional tactic)
-  (let ((tactic (or tactic (oref obj combine-tactic)))
-        (old-val (oref obj value)))
-    (if (eq tactic 'replace)
-        ;; replace tactic: entire value gets replaced
-        (oset obj value value)
-      ;; merge tactic
-      (if (oref obj multi-value)
-          ;; value is a list (multi-value), so we concatenate
-          (oset obj value (-concat old-val value))
-        ;; value is not a list, so we append (merge tactic forces the result to be a list)
-        (oset obj value (-snoc old-val value))))))
-
 (cl-defmethod org-gtd-transient--set-target-value ((obj org-gtd-transient--setter) val &optional tactic)
   "Set the value of the current setter target to VAL.
 
 If specified, use TACTIC instead of the merge tactic of the setter's target."
-  (transient-infix-set (org-gtd-transient--target obj) val tactic))
+  (org-gtd-transient--set-var-val (org-gtd-transient--target obj) val))
 
 
 ;;; Draw
 
+
 (cl-defgeneric org-gtd-transient--format-value-pretty (obj)
   "Format the value of OBJ in as pretty a manner as possible.")
-
-(cl-defmethod transient-format ((obj org-gtd-transient--value))
-  "Components that exist only to hold values are not rendered by default."
-  "")
 
 (cl-defmethod transient-format ((obj org-gtd-transient--display))
   "Return a string generated using OBJ's `format'.
@@ -192,12 +160,12 @@ doesn't use the `face' property at all, then apply the face
 
 (cl-defmethod transient-format-value ((obj org-gtd-transient--display))
   "When formatting a value for a display component, we display the value of the target."
-  (let ((val (oref (org-gtd-transient--target obj) value)))
+  (let ((val (org-gtd-transient--target-value obj)))
     (propertize (format "%s" val) 'face (if val 'transient-value 'transient-inactive-value))))
 
 (cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--display))
   "When formatting a value for a display component, we display the value of the target."
-  (let ((value (oref (org-gtd-transient--target obj) value))
+  (let ((value (org-gtd-transient--target-value obj))
         (propertize-value (lambda (v) (propertize (format "%s" v) 'face 'transient-value))))
     (if value
         (if (listp value)
