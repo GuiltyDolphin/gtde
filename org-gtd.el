@@ -43,7 +43,9 @@
 (defclass org-gtd-transient--reader ()
   ((multi-value :initarg :multi-value :initform nil
                 :documentation "T if multiple values can be read at once.")
-   (prompt :initarg :prompt :documentation "Prompt to use when reading values."))
+   (prompt :initarg :prompt :documentation "Prompt to use when reading values.")
+   (choices :initarg :choices :initform nil
+            :documentation "Alternatives that can be selected from."))
   :documentation "Base class for readers.")
 
 (defclass org-gtd-transient--component (transient-child)
@@ -140,9 +142,8 @@ TACTIC, if specified, determines how to combine existing and new values.")
   "Read a value according to the specification of READER.
 
 VALUE, if specified, indicates the existing value of the target being read for."
-  (with-slots (multi-value prompt) reader
+  (with-slots (choices multi-value prompt) reader
     (let* ((overriding-terminal-local-map nil)
-           (choices nil)
            (value-str
             (if multi-value
                 (mapconcat (lambda (v) (format "%s" v)) value ",") (format "%s" value)))
@@ -162,6 +163,8 @@ VALUE, if specified, indicates the existing value of the target being read for."
              (multi-value
               (completing-read-multiple prompt choices nil nil
                                         initial-input history))
+             (choices
+              (completing-read prompt choices nil t initial-input history))
              (t (read-string prompt initial-input history)))))
       (when value
         (when (bound-and-true-p ivy-mode)
