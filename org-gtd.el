@@ -40,6 +40,12 @@
 ;;; Classes
 
 
+(defclass org-gtd-transient--reader ()
+  ((multi-value :initarg :multi-value :initform nil
+                :documentation "T if multiple values can be read at once.")
+   (prompt :initarg :prompt :documentation "Prompt to use when reading values."))
+  :documentation "Base class for readers.")
+
 (defclass org-gtd-transient--component (transient-child)
   (())
   :documentation "Abstract class for individual components."
@@ -72,7 +78,8 @@ TACTIC, if specified, determines how to combine existing and new values.")
   :documentation "Class for displaying the value of another component.")
 
 (defclass org-gtd-transient--setter (transient-suffix org-gtd-transient--targeted)
-  ((transient :initarg :transient :initform 'transient--do-call))
+  ((transient :initarg :transient :initform 'transient--do-call)
+   (reader :initarg :reader :documentation "Configuration for reading values."))
   :documentation "Class for suffixes that set the value of other infixes.")
 
 
@@ -121,6 +128,51 @@ TACTIC, if specified, determines how to combine existing and new values.")
 (defun org-gtd-transient--target-value (obj)
   "Get the value of the target of OBJ."
   (org-gtd-transient--var-val (org-gtd-transient--target obj)))
+
+
+;;; Read
+
+
+(cl-defgeneric org-gtd-transient--read (obj)
+  "Read a value according to the specification of OBJ.")
+
+(cl-defmethod org-gtd-transient--read ((reader org-gtd-transient--reader) &optional value)
+  "Read a value according to the specification of READER.
+
+VALUE, if specified, indicates the existing value of the target being read for."
+  (with-slots (multi-value prompt) reader
+    (let* ((overriding-terminal-local-map nil)
+           (choices nil)
+           (value-str
+            (if multi-value
+                (mapconcat (lambda (v) (format "%s" v)) value ",") (format "%s" value)))
+           (history-key nil)
+           (transient--history (alist-get history-key transient-history))
+           (transient--history (if (or (null value-str)
+                                       (equal value-str (car transient--history)))
+                                   transient--history
+                                 (cons value-str transient--history)))
+           (initial-input (and transient-read-with-initial-input
+                               (car transient--history)))
+           (history (if initial-input
+                        (cons 'transient--history 1)
+                      'transient--history))
+           (value
+            (cond
+             (multi-value
+              (completing-read-multiple prompt choices nil nil
+                                        initial-input history))
+             (t (read-string prompt initial-input history)))))
+      (when value
+        (when (bound-and-true-p ivy-mode)
+          (set-text-properties 0 (length (car transient--history)) nil
+                               (car transient--history)))
+        (setf (alist-get history-key transient-history)
+              (delete-dups transient--history)))
+      value)))
+
+(cl-defmethod org-gtd-transient--read ((obj org-gtd-transient--setter))
+  (org-gtd-transient--read (oref obj reader) (org-gtd-transient--target-value obj)))
 
 
 ;;; Set
