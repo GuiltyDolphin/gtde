@@ -164,6 +164,8 @@ If specified, use TACTIC instead of the merge tactic of the setter's target."
 
 ;;; Draw
 
+(cl-defgeneric org-gtd-transient--format-value-pretty (obj)
+  "Format the value of OBJ in as pretty a manner as possible.")
 
 (cl-defmethod transient-format ((obj org-gtd-transient--value))
   "Components that exist only to hold values are not rendered by default."
@@ -172,10 +174,12 @@ If specified, use TACTIC instead of the merge tactic of the setter's target."
 (cl-defmethod transient-format ((obj org-gtd-transient--display))
   "Return a string generated using OBJ's `format'.
 %d is formatted using `transient-format-description'.
-%v is formatted using `transient-format-value'."
+%v is formatted using `transient-format-value'.
+%V is formatted using `org-gtd-transient--format-value-pretty'."
   (format-spec (oref obj format)
                `((?d . ,(transient-format-description obj))
-                 (?v . ,(transient-format-value obj)))))
+                 (?v . ,(transient-format-value obj))
+                 (?V . ,(org-gtd-transient--format-value-pretty obj)))))
 
 (cl-defmethod transient-format-description ((obj org-gtd-transient--display))
   "Format the description by calling the next method.  If the result
@@ -190,6 +194,21 @@ doesn't use the `face' property at all, then apply the face
   "When formatting a value for a display component, we display the value of the target."
   (let ((val (oref (org-gtd-transient--target obj) value)))
     (propertize (format "%s" val) 'face (if val 'transient-value 'transient-inactive-value))))
+
+(cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--display))
+  "When formatting a value for a display component, we display the value of the target."
+  (let ((value (oref (org-gtd-transient--target obj) value))
+        (propertize-value (lambda (v) (propertize (format "%s" v) 'face 'transient-value))))
+    (if value
+        (if (listp value)
+            (if (cdr value)
+                ;; display elements on separate lines
+                (mapconcat (lambda (v) (concat "\n     " (funcall propertize-value v))) value "")
+              ;; if only one element, display it inline
+              (funcall propertize-value (car value)))
+          ;; not a list, just display the value
+          (funcall propertize-value value))
+      (propertize "unset" 'face 'transient-inactive-value))))
 
 
 (provide 'org-gtd)
