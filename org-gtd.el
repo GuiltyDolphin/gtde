@@ -57,6 +57,11 @@ in which case the new and old values are merged as lists.")
                 :documentation "If set to T, will treat a list of values as being a list of values rather than a single value when setting. Set this to T if the user can enter multiple values at a time."))
   :documentation "Class for transient components that hold values.")
 
+(defclass org-gtd-transient--setter (transient-suffix)
+  ((target-id :initarg :target-id :documentation "Id of the infix this targets.")
+   (transient :initarg :transient :initform 'transient--do-call))
+  :documentation "Class for suffixes that set the value of other infixes.")
+
 (defclass org-gtd-transient--value (transient-variable)
   ((default :initarg :default)
    (id :initarg :id)
