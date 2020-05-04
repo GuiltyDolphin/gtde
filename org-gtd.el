@@ -85,7 +85,7 @@ in which case the new and old values are merged as lists."))
 (cl-defmethod transient--init-suffix-key ((obj org-gtd-transient--display)))
 
 (cl-defmethod transient-init-value ((obj org-gtd-transient--value))
-  (when (slot-boundp obj :default)
+  (when (slot-boundp obj 'default)
     (oset obj value (oref obj default))))
 
 
