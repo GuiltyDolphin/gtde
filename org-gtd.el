@@ -82,7 +82,7 @@ TACTIC, if specified, determines how to combine existing and new values.")
 (defclass org-gtd-transient--setter (transient-suffix org-gtd-transient--targeted)
   ((transient :initarg :transient :initform 'transient--do-call)
    (reader :initarg :reader :documentation "Configuration for reading values."))
-  :documentation "Class for suffixes that set the value of other infixes.")
+  :documentation "Interactive element that reads a value from the user, and sets an in-scope variable based on that value.")
 
 
 ;;; Init
