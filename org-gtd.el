@@ -205,9 +205,10 @@ If specified, use TACTIC instead of the merge tactic of the setter's target."
                  (?V . ,(org-gtd-transient--format-value-pretty obj)))))
 
 (cl-defmethod transient-format-description ((obj org-gtd-transient--display))
-  "Format the description by calling the next method.  If the result
-doesn't use the `face' property at all, then apply the face
-`transient-heading' to the complete string."
+  "Format the description by calling the next method.
+
+If the result doesn't use the `face' property at all, then apply
+the face `transient-heading' to the complete string."
   (when-let ((desc (cl-call-next-method obj)))
     (if (text-property-not-all 0 (length desc) 'face nil desc)
         desc
