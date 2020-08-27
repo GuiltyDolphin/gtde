@@ -49,7 +49,43 @@
   :documentation "Base class for readers.")
 
 (defclass org-gtd-transient--component (transient-child)
-  (())
+  (
+   ;; NOTE: I've had to add these 'inapt' fields as they are part of
+   ;; transient-suffix, but not transient-child, and errors were being
+   ;; thrown without them. The transient docs c (2020-08-26)
+   (inapt                             :initform nil)
+   (inapt-if
+    :initarg :inapt-if
+    :initform nil
+    :documentation "Inapt if predicate returns non-nil.")
+   (inapt-if-not
+    :initarg :inapt-if-not
+    :initform nil
+    :documentation "Inapt if predicate returns nil.")
+   (inapt-if-non-nil
+    :initarg :inapt-if-non-nil
+    :initform nil
+    :documentation "Inapt if variable's value is non-nil.")
+   (inapt-if-nil
+    :initarg :inapt-if-nil
+    :initform nil
+    :documentation "Inapt if variable's value is nil.")
+   (inapt-if-mode
+    :initarg :inapt-if-mode
+    :initform nil
+    :documentation "Inapt if major-mode matches value.")
+   (inapt-if-not-mode
+    :initarg :inapt-if-not-mode
+    :initform nil
+    :documentation "Inapt if major-mode does not match value.")
+   (inapt-if-derived
+    :initarg :inapt-if-derived
+    :initform nil
+    :documentation "Inapt if major-mode derives from value.")
+   (inapt-if-not-derived
+    :initarg :inapt-if-not-derived
+    :initform nil
+    :documentation "Inapt if major-mode does not derive from value."))
   :documentation "Abstract class for individual components."
   :abstract t)
 
