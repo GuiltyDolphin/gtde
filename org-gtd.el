@@ -7,7 +7,7 @@
 ;; Created: 2020-05-03
 ;; Version: 0.0.0
 ;; Keywords: outlines, tools
-;; Package-Requires: ((dash "2.18.1") (emacs "25.1") (transient "0.2.0"))
+;; Package-Requires: ((dash "2.18.1") (emacs "25.1") (transient "0.3.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
