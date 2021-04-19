@@ -113,6 +113,25 @@ TACTIC, if specified, determines how to combine existing and new values.")
   :documentation "Interactive element that reads a value from the user, and sets an in-scope variable based on that value.")
 
 
+;;;; Dates
+
+
+(defclass org-gtd-transient--date-reader (org-gtd-transient--reader)
+  (())
+  :documentation "Class for reading dates.")
+
+(defclass org-gtd-transient--date-display (org-gtd-transient--display)
+  ((date-format :initarg :date-format :initform "%c" :documentation "Format used to display the date (see `format-time-string' for available formats).")
+   (date-format-no-time :initarg :date-format-no-time :documentation "Format used to display the date when there is no time specified. Defaults to use the :date-format property."))
+  :documentation "Class for displaying dates.")
+
+(defclass org-gtd--date ()
+  ((time-string :initarg :time-string)
+   (time-specified :initarg :time-specified :documentation "Whether the user specified a time and not just a date.")
+   (internal-time :initarg :internal-time :documentation "Internal time value represented by the date."))
+  :documentation "Represents a date entered by a user.")
+
+
 ;;; Init
 
 
@@ -202,6 +221,15 @@ VALUE, if specified, indicates the existing value of the target being read for."
               (delete-dups transient--history)))
       value)))
 
+(cl-defmethod org-gtd-transient--read ((reader org-gtd-transient--date-reader) &optional value)
+  "Read a date value according to the specification of READER.
+
+VALUE, if specified, indicates the existing value of the target being read for."
+  (with-slots (prompt) reader
+    (let* ((user-date (org-read-date nil nil nil prompt))
+           (time-specified (string-match-p ":" user-date)))
+      (org-gtd--date :time-string user-date :time-specified time-specified :internal-time (org-time-string-to-time user-date)))))
+
 (cl-defmethod org-gtd-transient--read ((obj org-gtd-transient--setter))
   (org-gtd-transient--read (oref obj reader) (org-gtd-transient--target-value obj)))
 
@@ -242,25 +270,43 @@ the face `transient-heading' to the complete string."
         desc
       (propertize desc 'face 'transient-heading))))
 
+(defun org-gtd--propertize-with-defaults (s v)
+  "Propertize string S formatted from value V, treating it as inactive if V is NIL."
+  (propertize s 'face (if v 'transient-value 'transient-inactive-value)))
+
 (cl-defmethod transient-format-value ((obj org-gtd-transient--display))
   "When formatting a value for a display component, we display the value of the target."
   (let ((val (org-gtd-transient--target-value obj)))
-    (propertize (format "%s" val) 'face (if val 'transient-value 'transient-inactive-value))))
+    (org-gtd--propertize-with-defaults (format "%s" val) val)))
 
 (cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--display))
   "When formatting a value for a display component, we display the value of the target."
   (let ((value (org-gtd-transient--target-value obj))
         (propertize-value (lambda (v) (propertize (format "%s" v) 'face 'transient-value))))
     (if value
-        (if (listp value)
-            (if (cdr value)
-                ;; display elements on separate lines
-                (mapconcat (lambda (v) (concat "\n     " (funcall propertize-value v))) value "")
-              ;; if only one element, display it inline
-              (funcall propertize-value (car value)))
-          ;; not a list, just display the value
-          (funcall propertize-value value))
+        (cond
+         ;; got a date, try and format it nicely
+         ((org-gtd--date-child-p value)
+          (funcall propertize-value (format-time-string (if (oref value time-specified) "%FT%H:%M" "%F") (oref value internal-time))))
+         ;; with a list, display on multiple lines if there are multiple elements, otherwise display on a single line
+         ((listp value)
+          (if (cdr value)
+              ;; display elements on separate lines
+              (mapconcat (lambda (v) (concat "\n     " (funcall propertize-value v))) value "")
+            ;; if only one element, display it inline
+            (funcall propertize-value (car value))))
+         ;; not a list, just display the value
+         (t (funcall propertize-value value)))
       (propertize "unset" 'face 'transient-inactive-value))))
+
+(cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--date-display))
+  "Pretty display of a date."
+  (with-slots (date-format date-format-no-time) obj
+    (let ((val (org-gtd-transient--target-value obj)))
+      (org-gtd--propertize-with-defaults
+       (if val (format-time-string (if (oref val time-specified) date-format
+                                     (or (and (slot-boundp obj 'date-format-no-time) date-format-no-time) date-format))
+                                   (oref val internal-time)) "") val))))
 
 
 (provide 'org-gtd-transient)
