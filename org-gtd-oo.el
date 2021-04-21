@@ -23,6 +23,7 @@
 ;;; Code:
 
 (require 'eieio)
+(require 'org)
 
 (defclass org-gtd--base ()
   ()
