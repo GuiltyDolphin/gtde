@@ -286,7 +286,7 @@ the face `transient-heading' to the complete string."
     (if value
         (cond
          ;; got a date, try and format it nicely
-         ((org-gtd--date-child-p value)
+         ((cl-typep value #'org-gtd--date)
           (funcall propertize-value (format-time-string (if (oref value time-specified) "%FT%H:%M" "%F") (oref value internal-time))))
          ;; with a list, display on multiple lines if there are multiple elements, otherwise display on a single line
          ((listp value)
