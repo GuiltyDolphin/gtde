@@ -1,13 +1,7 @@
-;;; org-gtd.el --- Tools for working with GTD and org-mode -*- lexical-binding: t; -*-
+;;; org-gtd-oo.el --- org-gtd object-oriented interface.
 
-;; Copyright (C) 2020 Ben Moon
+;; Copyright (C) 2021 Ben Moon
 ;; Author: Ben Moon <software@guiltydolphin.com>
-;; URL: https://github.com/GuiltyDolphin/org-gtd
-;; Git-Repository: git://github.com/GuiltyDolphin/org-gtd.git
-;; Created: 2020-05-03
-;; Version: 0.0.0
-;; Keywords: outlines, tools
-;; Package-Requires: ((dash "2.18.1") (emacs "25.1") (transient "0.3.0"))
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -23,18 +17,17 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
-;; org-gtd provides tools for working with GTD workflows and org-mode.
-;;
-;; For more information see the README.
-
+;;;
+;;; Defines org-gtd classes.
+;;;
 ;;; Code:
 
+(require 'eieio)
 
-(require 'org-gtd-transient)
+(defclass org-gtd--base ()
+  ()
+  :abstract t
+  :documentation "Abstract base class for org-gtd.")
 
-(require 'org-gtd-oo)
-
-
-(provide 'org-gtd)
-;;; org-gtd.el ends here
+(provide 'org-gtd-oo)
+;;; org-gtd-oo.el ends here
