@@ -1,6 +1,6 @@
 ;;; org-gtd.el --- Tools for working with GTD and org-mode -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020 Ben Moon
+;; Copyright (C) 2020-2021 Ben Moon
 ;; Author: Ben Moon <software@guiltydolphin.com>
 ;; URL: https://github.com/GuiltyDolphin/org-gtd
 ;; Git-Repository: git://github.com/GuiltyDolphin/org-gtd.git
