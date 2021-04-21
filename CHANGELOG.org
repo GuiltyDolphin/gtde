@@ -7,6 +7,12 @@
 - new package dependencies
   - dash :: 2.18.1
   - transient :: 0.3.0
+- new files
+  - =Makefile=
+  - =org-gtd-oo.el=
+  - =org-gtd-transient.el=
+  - =tests/org-gtd-oo-tests.el=
+  - =tests/org-gtd-tests.el=
 
 * 0.0.0 - 2020-05-03
 
