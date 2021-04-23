@@ -55,6 +55,9 @@
    (prompt :initarg :prompt :documentation "Prompt to use when reading values.")
    (choices :initarg :choices :initform nil
             :documentation "Alternatives that can be selected from. Can be a zero-argument function that generates a list, or a list.")
+   (require-match :initarg :require-match
+                  :initform nil
+                  :documentation "Specifies whether the user's entry must match a provided choice. See `completing-read' for the exact behaviour.")
    (on-result :initarg :on-result :initform nil
               :documentation "Function used to transform the value read."))
   :documentation "Base class for readers.")
@@ -221,7 +224,7 @@ TACTIC, if specified, determines how to combine existing and new values.")
   "Read a value according to the specification of READER.
 
 VALUE, if specified, indicates the existing value of the target being read for."
-  (with-slots (choices multi-value prompt on-result) reader
+  (with-slots (choices multi-value prompt on-result require-match) reader
     (let* ((prefix transient-current-prefix)
            (suffix (transient-suffix-object))
            (overriding-terminal-local-map nil)
@@ -242,10 +245,10 @@ VALUE, if specified, indicates the existing value of the target being read for."
            (value
             (cond
              (multi-value
-              (completing-read-multiple prompt choices nil nil
+              (completing-read-multiple prompt choices nil require-match
                                         initial-input history))
              (choices
-              (completing-read prompt choices nil t initial-input history))
+              (completing-read prompt choices nil require-match initial-input history))
              (t (read-string prompt initial-input history)))))
       (when value
         (when (bound-and-true-p ivy-mode)
