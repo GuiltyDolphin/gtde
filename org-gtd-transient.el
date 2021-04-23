@@ -203,6 +203,17 @@ TACTIC, if specified, determines how to combine existing and new values.")
 ;;; Read
 
 
+(defvar org-gtd-transient--history nil "Completion history for transients.")
+
+(defun org-gtd-transient--get-history (prefix suffix)
+  "Get the history for SUFFIX under PREFIX."
+  (copy-alist (alist-get (oref suffix command) (alist-get (oref prefix command) org-gtd-transient--history))))
+
+(defun org-gtd-transient--add-to-history (prefix suffix value)
+  "Add VALUE to the history for SUFFIX under PREFIX."
+  (let ((hist (org-gtd-transient--get-history prefix suffix)))
+    (setf (alist-get (oref suffix command) (alist-get (oref prefix command) org-gtd-transient--history)) (-uniq (cons value hist)))))
+
 (cl-defgeneric org-gtd-transient--read (obj)
   "Read a value according to the specification of OBJ.")
 
@@ -211,22 +222,23 @@ TACTIC, if specified, determines how to combine existing and new values.")
 
 VALUE, if specified, indicates the existing value of the target being read for."
   (with-slots (choices multi-value prompt on-result) reader
-    (let* ((overriding-terminal-local-map nil)
+    (let* ((prefix transient-current-prefix)
+           (suffix (transient-suffix-object))
+           (overriding-terminal-local-map nil)
            (choices (if (functionp choices) (funcall choices) choices))
            (value-str
             (if multi-value
                 (mapconcat (lambda (v) (format "%s" v)) value ",") (format "%s" value)))
-           (history-key nil)
-           (transient--history (alist-get history-key transient-history))
-           (transient--history (if (or (null value-str)
-                                       (equal value-str (car transient--history)))
-                                   transient--history
-                                 (cons value-str transient--history)))
+           (history-raw (org-gtd-transient--get-history prefix suffix))
+           (history-with-value (if (or (null value-str)
+                                       (equal value-str (car history-raw)))
+                                   history-raw
+                                 (cons value-str history-raw)))
            (initial-input (and transient-read-with-initial-input
-                               (car transient--history)))
+                               (car history-with-value)))
            (history (if initial-input
-                        (cons 'transient--history 1)
-                      'transient--history))
+                        (cons 'history-with-value 1)
+                      'history-with-value))
            (value
             (cond
              (multi-value
@@ -239,8 +251,7 @@ VALUE, if specified, indicates the existing value of the target being read for."
         (when (bound-and-true-p ivy-mode)
           (set-text-properties 0 (length (car transient--history)) nil
                                (car transient--history)))
-        (setf (alist-get history-key transient-history)
-              (delete-dups transient--history)))
+        (org-gtd-transient--add-to-history prefix suffix value))
       (if on-result (funcall on-result value) value))))
 
 (cl-defmethod org-gtd-transient--read ((reader org-gtd-transient--date-reader) &optional value)
