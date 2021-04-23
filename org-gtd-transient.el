@@ -123,7 +123,9 @@ TACTIC, if specified, determines how to combine existing and new values.")
 (defclass org-gtd-transient--display (org-gtd-transient--targeted org-gtd-transient--non-interactive)
   ((description :initarg :description :documentation "Description of the component.")
    (command :initarg :command :initform ignore)
-   (format :initarg :format :initform "%d %v"))
+   (format :initarg :format :initform "%d %v")
+   (renderer :initarg :renderer :initform nil
+             :documentation "Optional function used to render the targeted value."))
   :documentation "Class for displaying the value of another component.")
 
 (defclass org-gtd-transient--setter (transient-suffix org-gtd-transient--targeted)
@@ -296,13 +298,18 @@ the face `transient-heading' to the complete string."
 
 (cl-defmethod transient-format-value ((obj org-gtd-transient--display))
   "When formatting a value for a display component, we display the value of the target."
-  (let ((val (org-gtd-transient--target-value obj)))
-    (org-gtd--propertize-with-defaults (format "%s" val) val)))
+  (let* ((val (org-gtd-transient--target-value obj))
+         (renderer (oref obj renderer))
+         (val-rendered (if (functionp renderer) (funcall renderer val) val)))
+    (org-gtd--propertize-with-defaults (format "%s" val-rendered) val-rendered)))
 
 (cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--display))
   "When formatting a value for a display component, we display the value of the target."
-  (let ((value (org-gtd-transient--target-value obj))
-        (propertize-value (lambda (v) (propertize (format "%s" v) 'face 'transient-value))))
+  (let* ((value (org-gtd-transient--target-value obj))
+         (renderer (oref obj renderer))
+         (propertize-value (lambda (v)
+                             (let ((val-rendered (if renderer (funcall renderer v) v)))
+                               (propertize (format "%s" val-rendered) 'face 'transient-value)))))
     (if value
         (cond
          ;; got a date, try and format it nicely
