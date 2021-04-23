@@ -30,5 +30,13 @@
   :abstract t
   :documentation "Abstract base class for org-gtd.")
 
+(defclass org-gtd--item (org-gtd--base)
+  ((title :initarg :title
+          :documentation "Title of the item.")
+   (id :initarg :id
+       :documentation "Unique identifier for the item. Don't change this manually."))
+  :abstract t
+  :documentation "Abstract class for item-like classes.")
+
 (provide 'org-gtd-oo)
 ;;; org-gtd-oo.el ends here
