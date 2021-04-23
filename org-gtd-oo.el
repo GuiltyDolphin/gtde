@@ -38,5 +38,11 @@
   :abstract t
   :documentation "Abstract class for item-like classes.")
 
+(defclass org-gtd--has-parent-projects (org-gtd--base)
+  ((superior-projects :initarg :projects
+                      :documentation "Projects that contain this item."))
+  :abstract t
+  :documentation "Abstract class for entries that can have associated parent projects.")
+
 (provide 'org-gtd-oo)
 ;;; org-gtd-oo.el ends here
