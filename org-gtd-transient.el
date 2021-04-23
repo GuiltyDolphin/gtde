@@ -203,6 +203,22 @@ TACTIC, if specified, determines how to combine existing and new values.")
   (org-gtd-transient--var-val (org-gtd-transient--target obj)))
 
 
+;;; Render
+
+
+(cl-defgeneric org-gtd-transient--render-to-input-text (obj)
+  "Render OBJ to input text for user entry and display.
+
+The rendered form should be suitable for re-parsing into an equal object (in the current state).")
+
+(cl-defmethod org-gtd-transient--render-to-input-text ((obj org-gtd--project-status))
+  (oref obj display))
+
+(cl-defmethod org-gtd-transient--render-to-input-text ((obj t))
+  "Resort to basic formatting if OBJ doesn't match any other case."
+  (format "%s" obj))
+
+
 ;;; Read
 
 
@@ -231,7 +247,7 @@ VALUE, if specified, indicates the existing value of the target being read for."
            (choices (if (functionp choices) (funcall choices) choices))
            (value-str
             (if multi-value
-                (mapconcat (lambda (v) (format "%s" v)) value ",") (format "%s" value)))
+                (mapconcat (lambda (v) (org-gtd-transient--render-to-input-text v)) value ",") (org-gtd-transient--render-to-input-text value)))
            (history-raw (org-gtd-transient--get-history prefix suffix))
            (history-with-value (if (or (null value-str)
                                        (equal value-str (car history-raw)))
