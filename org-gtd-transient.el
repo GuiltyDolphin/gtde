@@ -29,6 +29,23 @@
 (require 'transient)
 
 
+;;; Helpers
+
+
+(defun org-gtd--map-put (map key value)
+  "Set the value of KEY in MAP to VALUE."
+  (let ((elt (assoc key map)))
+    (if elt (progn (setcdr elt value) map) (cons (cons key value) map))))
+
+(defun org-gtd--map-get (map key)
+  "Get the value at KEY in MAP, if any."
+  (alist-get key map nil nil #'equal))
+
+(defun org-gtd--map-member (map key)
+  "Return non-NIL if there is an entry for KEY in MAP."
+  (assoc key map))
+
+
 ;;; Classes
 
 
@@ -148,17 +165,17 @@ TACTIC, if specified, determines how to combine existing and new values.")
 
 (defun org-gtd-transient--var-val (var)
   "Get the value of VAR in the current environment."
-  (lax-plist-get (org-gtd-transient--var-env) var))
+  (org-gtd--map-get (org-gtd-transient--var-env) var))
 
 (defun org-gtd-transient--set-var-val (var val)
   "Set the value of VAR to VAL in the current environment."
   (org-gtd-transient--set-var-env
-   (lax-plist-put (org-gtd-transient--var-env) var val)))
+   (org-gtd--map-put (org-gtd-transient--var-env) var val)))
 
 (defun org-gtd-transient--initialize-variable (var)
   "Initialize VAR for the current prefix environment."
   (let ((var-vals (org-gtd-transient--var-env)))
-    (unless (plist-member var-vals var)
+    (unless (org-gtd--map-member var-vals var)
       (org-gtd-transient--set-var-val var nil))))
 
 (cl-defmethod transient-init-scope ((obj org-gtd-transient--targeted))
