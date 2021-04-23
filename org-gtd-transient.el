@@ -54,7 +54,7 @@
                 :documentation "T if multiple values can be read at once.")
    (prompt :initarg :prompt :documentation "Prompt to use when reading values.")
    (choices :initarg :choices :initform nil
-            :documentation "Alternatives that can be selected from."))
+            :documentation "Alternatives that can be selected from. Can be a zero-argument function that generates a list, or a list."))
   :documentation "Base class for readers.")
 
 (defclass org-gtd-transient--component (transient-child)
@@ -208,6 +208,7 @@ TACTIC, if specified, determines how to combine existing and new values.")
 VALUE, if specified, indicates the existing value of the target being read for."
   (with-slots (choices multi-value prompt) reader
     (let* ((overriding-terminal-local-map nil)
+           (choices (if (functionp choices) (funcall choices) choices))
            (value-str
             (if multi-value
                 (mapconcat (lambda (v) (format "%s" v)) value ",") (format "%s" value)))
