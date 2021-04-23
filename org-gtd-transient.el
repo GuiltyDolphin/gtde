@@ -54,7 +54,9 @@
                 :documentation "T if multiple values can be read at once.")
    (prompt :initarg :prompt :documentation "Prompt to use when reading values.")
    (choices :initarg :choices :initform nil
-            :documentation "Alternatives that can be selected from. Can be a zero-argument function that generates a list, or a list."))
+            :documentation "Alternatives that can be selected from. Can be a zero-argument function that generates a list, or a list.")
+   (on-result :initarg :on-result :initform nil
+              :documentation "Function used to transform the value read."))
   :documentation "Base class for readers.")
 
 (defclass org-gtd-transient--component (transient-child)
@@ -206,7 +208,7 @@ TACTIC, if specified, determines how to combine existing and new values.")
   "Read a value according to the specification of READER.
 
 VALUE, if specified, indicates the existing value of the target being read for."
-  (with-slots (choices multi-value prompt) reader
+  (with-slots (choices multi-value prompt on-result) reader
     (let* ((overriding-terminal-local-map nil)
            (choices (if (functionp choices) (funcall choices) choices))
            (value-str
@@ -237,7 +239,7 @@ VALUE, if specified, indicates the existing value of the target being read for."
                                (car transient--history)))
         (setf (alist-get history-key transient-history)
               (delete-dups transient--history)))
-      value)))
+      (if on-result (funcall on-result value) value))))
 
 (cl-defmethod org-gtd-transient--read ((reader org-gtd-transient--date-reader) &optional value)
   "Read a date value according to the specification of READER.
