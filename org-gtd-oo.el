@@ -25,6 +25,12 @@
 (require 'eieio)
 (require 'org)
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Classes - Interfaces ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 (defclass org-gtd--base ()
   ()
   :abstract t
@@ -43,6 +49,54 @@
                       :documentation "Projects that contain this item."))
   :abstract t
   :documentation "Abstract class for entries that can have associated parent projects.")
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Classes - Configuration ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defclass org-gtd--project-status (org-gtd--base)
+  ((display :initarg :display
+            :type stringp
+            :documentation "Textual display of the status."))
+  :documentation "Status of a project.")
+
+(defconst org-gtd--project-status--active
+  (org-gtd--project-status :display "ACTIVE"))
+(defconst org-gtd--project-status--cancelled
+  (org-gtd--project-status :display "CANCELLED"))
+(defconst org-gtd--project-status--complete
+  (org-gtd--project-status :display "COMPLETE"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Classes - GTD ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defclass org-gtd--project (org-gtd--item)
+  ((actions :initarg :actions
+            :initform nil
+            :documentation "Next actions associated with the project.")
+   (status :initarg :status
+           :documentation "Status of the project."
+           :type org-gtd--project-status)
+   (subprojects :documentation "References to subprojects."))
+  :documentation "A project.")
+
+(defclass org-gtd--next-action (org-gtd--item org-gtd--has-parent-projects)
+  ((context :initarg :context
+            :initform nil
+            :documentation "Contexts required to be able to perform the action."))
+  :documentation "A next action.")
+
+(defclass org-gtd--waiting-for (org-gtd--item org-gtd--has-parent-projects)
+  ((scheduled :initarg :scheduled
+              :initform nil
+              :documentation "Date scheduled to chase up the waiting for."))
+  :documentation "An item waiting for someone else.")
+
 
 (provide 'org-gtd-oo)
 ;;; org-gtd-oo.el ends here
