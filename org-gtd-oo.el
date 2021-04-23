@@ -35,6 +35,28 @@
   "A list, where each element satisfies P."
   `(lambda (x) (and (listp x) (-all? ,p x))))
 
+(defun org-gtd--map-class-ltr-depth-first (fun classes)
+  "Map FUN over CLASSES and their subclasses.
+
+CLASSES is traversed left-to-right, depth-first, thus the (application to the) most specific, left-most class will be first in the resulting list."
+  (unless (null classes)
+    (let* ((current (car classes))
+           (left (org-gtd--map-class-ltr-depth-first fun (eieio-class-children current)))
+           (middle (funcall fun current))
+           (right (org-gtd--map-class-ltr-depth-first fun (cdr classes))))
+      (-concat left (list middle) right))))
+
+(defun org-gtd--first-class-ltr-depth-first (pred classes)
+  "Return the first class from CLASSES (or a subclass) that satisfies PRED.
+
+CLASSES is traversed left-to-right, depth-first, thus the most specific, left-most class that matches will be returned."
+  (-first pred (org-gtd--map-class-ltr-depth-first #'identity classes)))
+
+(defmacro org-gtd--oref-default-or-nil (obj slot)
+  "Get the default value of OBJ (maybe a class) for SLOT.
+
+Return NIL if the slot is unbound."
+  `(when (slot-boundp ,obj ',slot) (oref-default ,obj ,slot)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - Interfaces ;;;;;
@@ -87,31 +109,53 @@
   :documentation "Configuration for a GTD setup.")
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Classes - Parsing ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defclass org-gtd--from-org (org-gtd--base)
+  ((type-name
+    :required t
+    :type stringp
+    :documentation "Value used to identify whether an entry is of this class' type."))
+  :abstract t
+  :documentation "Interface for classes that can be parsed from Org entries.")
+
+(defun org-gtd--get-class-for-parsing (type)
+  "Get the class for parsing TYPE entries."
+  (when type
+    (org-gtd--first-class-ltr-depth-first (lambda (c) (equal (org-gtd--oref-default-or-nil c type-name) type)) '(org-gtd--from-org))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - GTD ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defclass org-gtd--project (org-gtd--item)
+(defclass org-gtd--project (org-gtd--item org-gtd--from-org)
   ((actions :initarg :actions
             :initform nil
             :documentation "Next actions associated with the project.")
    (status :initarg :status
            :documentation "Status of the project."
            :type org-gtd--project-status)
+   (type-name :initform "project")
    (subprojects :documentation "References to subprojects."))
   :documentation "A project.")
 
-(defclass org-gtd--next-action (org-gtd--item org-gtd--has-parent-projects)
+(defclass org-gtd--next-action (org-gtd--item org-gtd--has-parent-projects org-gtd--from-org)
   ((context :initarg :context
             :initform nil
-            :documentation "Contexts required to be able to perform the action."))
+            :documentation "Contexts required to be able to perform the action.")
+   (type-name :initform "next_action"))
   :documentation "A next action.")
 
-(defclass org-gtd--waiting-for (org-gtd--item org-gtd--has-parent-projects)
+(defclass org-gtd--waiting-for (org-gtd--item org-gtd--has-parent-projects org-gtd--from-org)
   ((scheduled :initarg :scheduled
               :initform nil
-              :documentation "Date scheduled to chase up the waiting for."))
+              :documentation "Date scheduled to chase up the waiting for.")
+   (type-name :initform "waiting_for"))
   :documentation "An item waiting for someone else.")
 
 
