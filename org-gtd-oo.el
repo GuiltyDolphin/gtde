@@ -98,5 +98,54 @@
   :documentation "An item waiting for someone else.")
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Class methods ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;
+;; Setup ;;
+;;;;;;;;;;;
+
+
+(define-error 'org-gtd--missing-required-option
+  "Missing required option(s)")
+
+(defun org-gtd--validate-option-type (obj opt pred)
+  "Validate that OBJ's OPT option satisfies PRED, and fail otherwise."
+  (unless (funcall pred (slot-value obj opt))
+    (signal 'org-gtd--error--bad-type (list opt pred))))
+
+(defun org-gtd--validate-required-options (obj props)
+  "Check that OBJ provides each option in PROPS, fail otherwise."
+  (let ((missing-opts))
+    (dolist (prop props)
+      (unless (slot-boundp obj prop)
+        (push prop missing-opts)))
+    (unless (null missing-opts)
+      (signal 'org-gtd--missing-required-option (nreverse missing-opts)))))
+
+(cl-defgeneric org-gtd--init (obj)
+  "Initialize OBJ.
+
+This method is called when an instance is created with
+`org-gtd-definst', so it's a good place to put any
+validation (e.g., checking for missing options) and
+initialization you want to apply to all new instances.
+
+You should usually either combine this method with `:before' or
+`:after' (see `cl-defmethod'), or call `cl-call-next-method' in
+the body.")
+
+(cl-defmethod org-gtd--init ((obj org-gtd--base))
+  "No-op.")
+
+(defun org-gtd-definst (class &rest args)
+  "Define an instance of CLASS using the given ARGS."
+  (let ((inst (apply class args)))
+    (org-gtd--init inst)
+    inst))
+
+
 (provide 'org-gtd-oo)
 ;;; org-gtd-oo.el ends here
