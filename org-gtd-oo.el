@@ -26,6 +26,16 @@
 (require 'org)
 
 
+;;;;;;;;;;;;;;;;;;;
+;;;;; Helpers ;;;;;
+;;;;;;;;;;;;;;;;;;;
+
+
+(defmacro org-gtd--type--list-of (p)
+  "A list, where each element satisfies P."
+  `(lambda (x) (and (listp x) (-all? ,p x))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - Interfaces ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,6 +79,13 @@
 (defconst org-gtd--project-status--complete
   (org-gtd--project-status :display "COMPLETE"))
 
+(defclass org-gtd--config (org-gtd--base)
+  ((statuses :initarg :statuses
+             ;; NOTE: there are nicer error messages if you use `org-gtd-defist' with `org-gtd--validate-option-type'. (2021-04-23)
+             :type (satisfies (lambda (x) (apply (org-gtd--type--list-of #'org-gtd--project-status-p) (list x))))
+             :documentation "List of possible project statuses."))
+  :documentation "Configuration for a GTD setup.")
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - GTD ;;;;;
@@ -96,6 +113,33 @@
               :initform nil
               :documentation "Date scheduled to chase up the waiting for."))
   :documentation "An item waiting for someone else.")
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Classes - Database ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defclass org-gtd--db (org-gtd--base)
+  ((global-config :initarg :global-config
+                  :description "Global configuration used at base level."
+                  :required t
+                  :type org-gtd--config)
+   (table :initarg :table
+          :description "Table of IDs to items."))
+  :description "Database for interacting with GTD items.")
+
+(defun org-gtd--new-db (config)
+  "Create a new database with CONFIG as the global configuration."
+  (org-gtd-definst #'org-gtd--db :global-config config :table (make-hash-table :test #'equal)))
+
+(defun org-gtd--db-get-entry (db id)
+  "Retrieve the entry with id ID from DB."
+  (gethash id (oref db table)))
+
+(defun org-gtd--db-add-entry (db id entry)
+  "Add ENTRY to database DB at key ID."
+  (puthash id entry (oref db table)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -139,6 +183,15 @@ the body.")
 
 (cl-defmethod org-gtd--init ((obj org-gtd--base))
   "No-op.")
+
+(cl-defmethod org-gtd--init :before ((obj org-gtd--config))
+  ":statuses must be a list of statuses, and must be specified."
+  (org-gtd--validate-required-options obj '(:statuses))
+  (org-gtd--validate-option-type obj :statuses (org-gtd--type--list-of #'org-gtd--project-status-p)))
+
+(cl-defmethod org-gtd--init ((obj org-gtd--db))
+  "We require the `:global-config' and `:table' arguments to be bound."
+  (org-gtd--validate-required-options obj '(:global-config :table)))
 
 (defun org-gtd-definst (class &rest args)
   "Define an instance of CLASS using the given ARGS."
