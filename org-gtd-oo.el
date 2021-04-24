@@ -35,6 +35,10 @@
   "A list, where each element satisfies P."
   `(lambda (x) (and (listp x) (-all? ,p x))))
 
+(defun org-gtd--alist-get (key alist)
+  "Get the value at KEY in ALIST, comparing using `equal'."
+  (alist-get key alist nil nil #'equal))
+
 (defun org-gtd--map-class-ltr-depth-first (fun classes)
   "Map FUN over CLASSES and their subclasses.
 
@@ -185,6 +189,25 @@ Return NIL if the slot is unbound."
   "Add ENTRY to database DB at key ID."
   (puthash id entry (oref db table)))
 
+(define-error 'org-gtd--unsupported-gtd-type
+  "Not a valid value for ORG_GTD_TYPE")
+
+(defun org-gtd--build-db-from-files (files)
+  "Build a database from FILES."
+  (let ((configs (org-map-entries (lambda () (apply #'org-gtd-definst #'org-gtd--config (org-gtd--parse-entry-properties #'org-gtd--config nil (org-entry-properties)))) "ORG_GTD_IS_CONFIG=\"t\"" files)))
+    (let ((db (org-gtd--new-db (car configs))))
+      (org-map-entries
+       (lambda ()
+         (let* ((properties (org-entry-properties))
+                (id (org-gtd--alist-get "ID" properties))
+                (type (org-gtd--alist-get "ORG_GTD_TYPE" properties))
+                (class-for-parsing (org-gtd--get-class-for-parsing type)))
+           (let ((entry-to-add
+                  (if class-for-parsing (apply #'org-gtd-definst class-for-parsing (org-gtd--parse-entry-properties class-for-parsing nil properties))
+                    (when type (signal 'org-gtd--unsupported-gtd-type type)))))
+             (when entry-to-add (org-gtd--db-add-entry db id entry-to-add)))))
+       nil files)
+      db)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Class methods ;;;;;
@@ -242,6 +265,44 @@ the body.")
   (let ((inst (apply class args)))
     (org-gtd--init inst)
     inst))
+
+
+;;;;;;;;;;;;;
+;; Parsing ;;
+;;;;;;;;;;;;;
+
+
+(cl-defgeneric org-gtd--parse-from-org (class org-text)
+  "Parse an instance of CLASS from ORG-TEXT.")
+
+(cl-defmethod org-gtd--parse-from-org ((_obj (subclass org-gtd--project-status)) org-text)
+  (org-gtd--project-status :display org-text))
+
+(cl-defgeneric org-gtd--parse-entry-properties (obj args props)
+  "Specify how to parse PROPS as a specification of properties for OBJ.  Current specification is held in ARGS.")
+
+(cl-defmethod org-gtd--parse-entry-properties ((_ (subclass org-gtd--base)) args _props)
+  "When we hit the base class, we simply return ARGS as a base case."
+  args)
+
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--item)) args props)
+  (cl-call-next-method obj (-concat args (list
+                                          :id (org-gtd--alist-get "ID" props)
+                                          :title (org-gtd--alist-get "ITEM" props)))
+                       props))
+
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--has-parent-projects)) args props)
+  (cl-call-next-method obj (-concat args (list :projects (let ((projects-string (org-gtd--alist-get "ORG_GTD_PROJECTS" props))) (and projects-string (read projects-string))))) props))
+
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--project)) args props)
+  (cl-call-next-method obj (-concat args (list :status (let ((status-string (org-gtd--alist-get "ORG_GTD_STATUS" props)))
+                                                         (and status-string (org-gtd--parse-from-org 'org-gtd--project-status status-string))))) props))
+
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--config)) args props)
+  (let* ((status-raw (org-gtd--alist-get "ORG_GTD_PROJECT_STATUSES" props))
+         (statuses (mapcar (-partial #'org-gtd--project-status :display) (split-string status-raw "[ |]" t))))
+  (cl-call-next-method obj (-concat args (list :statuses statuses))
+                       props)))
 
 
 (provide 'org-gtd-oo)

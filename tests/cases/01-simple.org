@@ -1,0 +1,40 @@
+* CONFIG
+:PROPERTIES:
+:ID: 01-config
+:ORG_GTD_IS_CONFIG: t
+:ORG_GTD_PROJECT_STATUSES: ACTIVE | COMPLETE CANCELLED
+:END:
+
+* Test project
+:PROPERTIES:
+:ID: 02-project
+:ORG_GTD_TYPE: project
+:ORG_GTD_ACTIONS: ("04-action-with-project", "05-waiting-for-with-project")
+:ORG_GTD_STATUS: COMPLETE
+:END:
+
+* A test standalone action
+:PROPERTIES:
+:ID: 03-action-standalone
+:ORG_GTD_TYPE: next_action
+:END:
+
+#+BEGIN_SRC emacs-lisp
+;; does this count as an entry?
+#+END_SRC
+
+** Non-GTD heading
+
+* Action of "a test project"
+:PROPERTIES:
+:ID: 04-action-with-project
+:ORG_GTD_TYPE: next_action
+:ORG_GTD_PROJECTS: ("02-project")
+:END:
+
+* Waiting for of "a test project"
+:PROPERTIES:
+:ID: 05-waiting-for-with-project
+:ORG_GTD_TYPE: waiting_for
+:ORG_GTD_PROJECTS: ("02-project")
+:END:

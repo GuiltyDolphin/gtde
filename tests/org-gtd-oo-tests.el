@@ -2,6 +2,7 @@
 ;;; Code:
 
 
+(require 'dash)
 (require 'org-gtd-oo)
 
 
@@ -38,6 +39,53 @@ CLASSES is traversed left-to-right, including children."
   "All non-abstract leaf classes of `org-gtd--from-org' must have a non-NIL default value set for the type-name property."
   (let ((leaves-with-type-name (org-gtd--map-class-leaves (lambda (c) (cons c (org-gtd--oref-default-or-nil c type-name))) '(org-gtd--from-org))))
     (--each leaves-with-type-name (-let (((c . k) it)) (should-not (equal (cons c nil) (cons c k)))))))
+
+(ert-deftest org-gtd-oo-test:org-gtd--build-db-from-files ()
+  "Tests for `org-gtd--build-db-from-files'."
+  (let ((db (org-gtd--build-db-from-files '("cases/01-simple.org"))))
+
+    ;; correct IDs should be parsed into items
+    (should (equal (-sort #'string-lessp (hash-table-keys (oref db table)))
+                   '("02-project" "03-action-standalone" "04-action-with-project" "05-waiting-for-with-project")))
+    (let ((config (oref db global-config))
+          (project (org-gtd--db-get-entry db "02-project"))
+          (action-standalone (org-gtd--db-get-entry db "03-action-standalone"))
+          (action-with-project (org-gtd--db-get-entry db "04-action-with-project"))
+          (waiting-for-with-project (org-gtd--db-get-entry db "05-waiting-for-with-project")))
+
+      ;; testing config
+      (should (equal 'org-gtd--config (eieio-object-class config)))
+      (should (equal (list (org-gtd--project-status :display "ACTIVE")
+                           (org-gtd--project-status :display "COMPLETE")
+                           (org-gtd--project-status :display "CANCELLED"))
+                     (oref config statuses)))
+
+      ;; testing project
+      (should (equal 'org-gtd--project (eieio-object-class project)))
+      (should (equal "02-project" (oref project id)))
+      (should (equal "Test project" (oref project title)))
+      (should (equal (org-gtd--project-status :display "COMPLETE") (oref project status)))
+
+      ;; testing action-standalone
+      (should (equal 'org-gtd--next-action (eieio-object-class action-standalone)))
+      (should (equal "03-action-standalone" (oref action-standalone id)))
+      (should (equal "A test standalone action" (oref action-standalone title)))
+
+      ;; testing action-with-project
+      (should (equal 'org-gtd--next-action (eieio-object-class action-with-project)))
+      (should (equal "04-action-with-project" (oref action-with-project id)))
+      (should (equal '("02-project") (oref action-with-project superior-projects)))
+      (should (equal "Action of \"a test project\"" (oref action-with-project title)))
+
+      ;; testing waiting-for-with-project
+      (should (equal 'org-gtd--waiting-for (eieio-object-class waiting-for-with-project)))
+      (should (equal "05-waiting-for-with-project" (oref waiting-for-with-project id)))
+      (should (equal '("02-project") (oref waiting-for-with-project superior-projects)))
+      (should (equal "Waiting for of \"a test project\"" (oref waiting-for-with-project title)))))
+
+  ;; unsupported GTD type
+  (should (equal "something_unsupported"
+                 (cdr (should-error (org-gtd--build-db-from-files '("cases/02-bad.org")) :type 'org-gtd--unsupported-gtd-type)))))
 
 
 (provide 'org-gtd-oo-tests)
