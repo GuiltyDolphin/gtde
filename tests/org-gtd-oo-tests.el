@@ -6,6 +6,10 @@
 (require 'org-gtd-oo)
 
 
+(defun org-gtd-test--find-test-case-file (basename)
+  "Find the test case file path for BASENAME."
+  (format "tests/cases/%s" basename))
+
 (defun org-gtd--map-class-leaves (fun classes)
   "Map FUN over leaf classes of CLASSES.
 
@@ -42,7 +46,7 @@ CLASSES is traversed left-to-right, including children."
 
 (ert-deftest org-gtd-oo-test:org-gtd--build-db-from-files ()
   "Tests for `org-gtd--build-db-from-files'."
-  (let ((db (org-gtd--build-db-from-files '("cases/01-simple.org"))))
+  (let ((db (org-gtd--build-db-from-files (list (org-gtd-test--find-test-case-file "01-simple.org")))))
 
     ;; correct IDs should be parsed into items
     (should (equal (-sort #'string-lessp (hash-table-keys (oref db table)))
@@ -85,7 +89,7 @@ CLASSES is traversed left-to-right, including children."
 
   ;; unsupported GTD type
   (should (equal "something_unsupported"
-                 (cdr (should-error (org-gtd--build-db-from-files '("cases/02-bad.org")) :type 'org-gtd--unsupported-gtd-type)))))
+                 (cdr (should-error (org-gtd--build-db-from-files (list (org-gtd-test--find-test-case-file "02-bad.org"))) :type 'org-gtd--unsupported-gtd-type)))))
 
 
 (provide 'org-gtd-oo-tests)
