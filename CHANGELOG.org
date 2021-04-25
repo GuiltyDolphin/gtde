@@ -11,6 +11,7 @@
   - =Makefile=
   - =org-gtd-oo.el=
   - =org-gtd-transient.el=
+  - =org-gtd-ui.el=
   - =tests/org-gtd-oo-tests.el=
   - =tests/org-gtd-tests.el=
 
