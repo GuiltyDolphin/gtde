@@ -28,6 +28,38 @@ CLASSES is traversed left-to-right, including children."
   `(should (string-match-p ,regex (cadr (should-error ,form)))))
 
 
+(defmacro org-gtd-test--with-temp-file (prefix suffix text fvar &rest body)
+  "Create a temporary file and execute BODY like `progn', with FVAR bound to the file name.
+
+PREFIX is the prefix used for the filename, and likewise SUFFIX is the suffix.
+
+TEXT is inserted automatically into the file."
+  (declare (indent 4) (debug t))
+  (let ((temp-file (make-symbol "temp-file"))
+        (buffers-for-temp-file (make-symbol "buffers-for-temp-file")))
+    `(let ((,temp-file (make-temp-file ,prefix nil ,suffix ,text)))
+       (unwind-protect
+           (let ((,fvar ,temp-file)) (progn ,@body))
+         (let ((,buffers-for-temp-file (-filter (lambda (buffer) (equal (buffer-file-name buffer) ,temp-file)) (buffer-list))))
+           (-each ,buffers-for-temp-file (lambda (buffer)
+                                           (with-current-buffer buffer
+                                             (set-buffer-modified-p nil)
+                                             (kill-buffer buffer)))))
+         (delete-file ,temp-file)))))
+
+(defmacro org-gtd-test--with-temp-org-file (prefix text fvar &rest body)
+  "Create a temporary file with prefix PREFIX and execute BODY like `progn', with FVAR bound to the name of the temporary file.
+
+TEXT is inserted into the new file."
+  (declare (indent 3) (debug t))
+  `(org-gtd-test--with-temp-file ,prefix ".org" ,text ,fvar ,@body))
+
+(defun org-gtd-test--find-item-by-id-in-file (id file)
+  "Find the item with given ID in FILE."
+  (let ((db (org-gtd--build-db-from-files (list file))))
+    (org-gtd--db-get-entry db id)))
+
+
 ;;;;;;;;;;;;;;;;;
 ;;;;; Tests ;;;;;
 ;;;;;;;;;;;;;;;;;
@@ -89,6 +121,32 @@ CLASSES is traversed left-to-right, including children."
   ;; unsupported GTD type
   (should (equal "something_unsupported"
                  (cdr (should-error (org-gtd--build-db-from-files (list (org-gtd-test--find-test-case-file "02-bad.org"))) :type 'org-gtd--unsupported-gtd-type)))))
+
+(ert-deftest org-gtd-oo-test:write-item-to-file ()
+  "Tests for `org-gtd--write-item-to-file'."
+  (let ((case-text (concat "* Test config\n"
+                              ":PROPERTIES:\n"
+                              ":ORG_GTD_IS_CONFIG: t\n"
+                              ":ORG_GTD_PROJECT_STATUSES: ACTIVE | INACTIVE\n"
+                              ":END:\n"
+                              "* Test action\n"
+                              ":PROPERTIES:\n"
+                              ":ID: 01-test-action\n"
+                              ":ORG_GTD_TYPE: next_action\n"
+                              ":END:\n"
+                              "* Test project\n"
+                              ":PROPERTIES:\n"
+                              ":ID: 01-test-project\n"
+                              ":ORG_GTD_TYPE: project\n"
+                              ":STATUS: ACTIVE\n"
+                              ":END:"))
+        (example-action (org-gtd--next-action :title "Modified action title" :id "01-test-action"))
+        (example-project (org-gtd--project :title "Modified title" :id "01-test-project" :status (org-gtd--project-status :display "INACTIVE"))))
+    (org-gtd-test--with-temp-org-file "test-file" case-text fvar
+      (org-gtd--write-item-to-file fvar example-project)
+      (org-gtd--write-item-to-file fvar example-action)
+      (should (equal example-project (org-gtd-test--find-item-by-id-in-file "01-test-project" fvar)))
+      (should (equal example-action (org-gtd-test--find-item-by-id-in-file "01-test-action" fvar))))))
 
 
 (provide 'org-gtd-oo-tests)

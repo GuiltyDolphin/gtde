@@ -23,7 +23,7 @@
 ;;; Code:
 
 (require 'eieio)
-(require 'org)
+(require 'org-id)
 
 
 ;;;;;;;;;;;;;;;;;;;
@@ -62,6 +62,24 @@ CLASSES is traversed left-to-right, depth-first, thus the most specific, left-mo
 Return NIL if the slot is unbound."
   `(when (slot-boundp ,obj ',slot) (oref-default ,obj ,slot)))
 
+(defmacro org-gtd--with-visiting-marker (marker &rest body)
+  "Execute BODY with MARKER position active for editing."
+  (declare (indent 1) (debug t))
+  `(with-current-buffer
+     (set-buffer (marker-buffer ,marker))
+     (goto-char (marker-position ,marker))
+     (progn ,@body)))
+
+(defmacro org-gtd--with-visiting-org-marker (marker &rest body)
+  "Execute BODY with MARKER position active for editing.
+
+This ensures that the edit is performed in Org mode."
+  (declare (indent 1) (debug t))
+  `(org-gtd--with-visiting-marker ,marker
+     (org-mode)
+     (progn ,@body)))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - Interfaces ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82,6 +100,7 @@ Return NIL if the slot is unbound."
 
 (defclass org-gtd--has-parent-projects (org-gtd--base)
   ((superior-projects :initarg :projects
+                      :initform nil
                       :documentation "Projects that contain this item."))
   :abstract t
   :documentation "Abstract class for entries that can have associated parent projects.")
@@ -303,6 +322,37 @@ the body.")
          (statuses (mapcar (-partial #'org-gtd--project-status :display) (split-string status-raw "[ |]" t))))
   (cl-call-next-method obj (-concat args (list :statuses statuses))
                        props)))
+
+
+;;;;;;;;;;;;;;;
+;; Rendering ;;
+;;;;;;;;;;;;;;;
+
+
+(cl-defgeneric org-gtd--render-to-org (obj)
+  "Render OBJ as Org text.")
+
+(cl-defmethod org-gtd--render-to-org ((obj org-gtd--project-status))
+  (oref obj display))
+
+(cl-defgeneric org-gtd--write-to-org (obj)
+  "Write OBJ to the current Org entry.")
+
+(cl-defmethod org-gtd--write-to-org ((obj org-gtd--item))
+  (org-edit-headline (oref obj title)))
+
+(cl-defmethod org-gtd--write-to-org ((obj org-gtd--project))
+  (org-set-property "ORG_GTD_STATUS" (org-gtd--render-to-org (oref obj status)))
+  (cl-call-next-method obj))
+
+(defun org-gtd--write-item-to-file (file item)
+  "Write the given ITEM to the given FILE."
+  (let ((pos (org-id-find-id-in-file (oref item id) file t)))
+    (if pos
+        (org-gtd--with-visiting-org-marker pos
+          (org-gtd--write-to-org item)
+          (save-buffer))
+      (error "Could not find entry %s" (oref item id)))))
 
 
 (provide 'org-gtd-oo)
