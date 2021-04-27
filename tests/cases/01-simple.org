@@ -3,6 +3,7 @@
 :ID: 01-config
 :ORG_GTD_IS_CONFIG: t
 :ORG_GTD_PROJECT_STATUSES: ACTIVE | COMPLETE CANCELLED
+:ORG_GTD_CONTEXT_TAG_REGEX: @\(.*\)
 :END:
 
 * Test project
@@ -25,7 +26,7 @@
 
 ** Non-GTD heading
 
-* Action of "a test project"
+* Action of "a test project"                    :@test_context:not_a_context:
 :PROPERTIES:
 :ID: 04-action-with-project
 :ORG_GTD_TYPE: next_action

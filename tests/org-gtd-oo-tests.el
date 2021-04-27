@@ -111,6 +111,7 @@ TEXT is inserted into the new file."
       (should (equal "04-action-with-project" (oref action-with-project id)))
       (should (equal '("02-project") (oref action-with-project superior-projects)))
       (should (equal "Action of \"a test project\"" (oref action-with-project title)))
+      (should (equal (org-gtd--some (list (org-gtd--context :name "test_context"))) (oref action-with-project context)))
 
       ;; testing waiting-for-with-project
       (should (equal 'org-gtd--waiting-for (eieio-object-class waiting-for-with-project)))
@@ -122,12 +123,20 @@ TEXT is inserted into the new file."
   (should (equal "something_unsupported"
                  (cdr (should-error (org-gtd--build-db-from-files (list (org-gtd-test--find-test-case-file "02-bad.org"))) :type 'org-gtd--unsupported-gtd-type)))))
 
+(ert-deftest org-gtd-oo-test:parse-from-org ()
+  "Tests for `org-gtd--parse-from-org'."
+  (let ((config1 (org-gtd--config :statuses (list (org-gtd--project-status :display "ACTIVE")) :context-tag-regex "@\\(.*\\)"))
+        (config2 (org-gtd--config :statuses (list (org-gtd--project-status :display "ACTIVE")) :context-tag-regex "@.*")))
+    (should (equal (org-gtd--context :name "test") (org-gtd--parse-from-org #'org-gtd--context config1 "@test")))
+    (should (equal (org-gtd--context :name "@test") (org-gtd--parse-from-org #'org-gtd--context config2 "@test")))))
+
 (ert-deftest org-gtd-oo-test:write-item-to-file ()
   "Tests for `org-gtd--write-item-to-file'."
   (let ((case-text (concat "* Test config\n"
                               ":PROPERTIES:\n"
                               ":ORG_GTD_IS_CONFIG: t\n"
                               ":ORG_GTD_PROJECT_STATUSES: ACTIVE | INACTIVE\n"
+                              ":ORG_GTD_CONTEXT_TAG_REGEX: @\\(.*\\)\n"
                               ":END:\n"
                               "* Test action\n"
                               ":PROPERTIES:\n"

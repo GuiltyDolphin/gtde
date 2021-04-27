@@ -79,6 +79,40 @@ This ensures that the edit is performed in Org mode."
      (org-mode)
      (progn ,@body)))
 
+(defun org-gtd--tag-string-to-list (org-tag-string)
+  "Parse ORG-TAG-STRING into a list of tags."
+  (save-match-data
+    (split-string org-tag-string ":" t)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;; Classes - Helpers ;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defclass org-gtd--maybe ()
+  ((value :initarg :value
+          :documentation "Underlying value."))
+  :documentation "A value that may or may not be present.")
+
+(defun org-gtd--none ()
+  "Nothing."
+  (org-gtd--maybe))
+
+(defun org-gtd--some (value)
+  "Return VALUE as a unit of `org-gtd--maybe'."
+  (org-gtd--maybe :value value))
+
+(defun org-gtd--on-maybe (value noneval somefun)
+  "If VALUE is not present, then return NONEVAL, else execute SOMEFUN with the embedded value."
+  (if (equal value (org-gtd--none))
+      noneval
+    (funcall somefun (slot-value value 'value))))
+
+(defmacro org-gtd--type-maybe-of (p)
+  "A value satisfying P wrapped in `org-gtd--maybe'."
+  `(lambda (x) (and (org-gtd--maybe-p x) (org-gtd--on-maybe x t ,p))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - Interfaces ;;;;;
@@ -128,7 +162,11 @@ This ensures that the edit is performed in Org mode."
   ((statuses :initarg :statuses
              ;; NOTE: there are nicer error messages if you use `org-gtd-defist' with `org-gtd--validate-option-type'. (2021-04-23)
              :type (satisfies (lambda (x) (apply (org-gtd--type--list-of #'org-gtd--project-status-p) (list x))))
-             :documentation "List of possible project statuses."))
+             :documentation "List of possible project statuses.")
+   (context-tag-regex
+    :initarg :context-tag-regex
+    :type stringp
+    :documentation "Regular expression used to match tags that represent contexts. If a match group is provided, it is used to extract the actual context text, otherwise the full match is used."))
   :documentation "Configuration for a GTD setup.")
 
 
@@ -167,9 +205,15 @@ This ensures that the edit is performed in Org mode."
    (subprojects :documentation "References to subprojects."))
   :documentation "A project.")
 
+(defclass org-gtd--context (org-gtd--base)
+  ((name :initarg :name
+         :type stringp
+         :documentation "Text value of the context."))
+  :documentation "Context of an action.")
+
 (defclass org-gtd--next-action (org-gtd--item org-gtd--has-parent-projects org-gtd--from-org)
   ((context :initarg :context
-            :initform nil
+            :initform (org-gtd--none)
             :documentation "Contexts required to be able to perform the action.")
    (type-name :initform "next_action"))
   :documentation "A next action.")
@@ -213,8 +257,9 @@ This ensures that the edit is performed in Org mode."
 
 (defun org-gtd--build-db-from-files (files)
   "Build a database from FILES."
-  (let ((configs (org-map-entries (lambda () (apply #'org-gtd-definst #'org-gtd--config (org-gtd--parse-entry-properties #'org-gtd--config nil (org-entry-properties)))) "ORG_GTD_IS_CONFIG=\"t\"" files)))
-    (let ((db (org-gtd--new-db (car configs))))
+  (let ((configs (org-map-entries (lambda () (apply #'org-gtd-definst #'org-gtd--config (org-gtd--parse-entry-properties-no-config #'org-gtd--config nil (org-entry-properties)))) "ORG_GTD_IS_CONFIG=\"t\"" files)))
+    (let* ((config (car configs))
+           (db (org-gtd--new-db config)))
       (org-map-entries
        (lambda ()
          (let* ((properties (org-entry-properties))
@@ -222,7 +267,7 @@ This ensures that the edit is performed in Org mode."
                 (type (org-gtd--alist-get "ORG_GTD_TYPE" properties))
                 (class-for-parsing (org-gtd--get-class-for-parsing type)))
            (let ((entry-to-add
-                  (if class-for-parsing (apply #'org-gtd-definst class-for-parsing (org-gtd--parse-entry-properties class-for-parsing nil properties))
+                  (if class-for-parsing (apply #'org-gtd-definst class-for-parsing (org-gtd--parse-entry-properties class-for-parsing config nil properties))
                     (when type (signal 'org-gtd--unsupported-gtd-type type)))))
              (when entry-to-add (org-gtd--db-add-entry db id entry-to-add)))))
        nil files)
@@ -279,6 +324,16 @@ the body.")
   "We require the `:global-config' and `:table' arguments to be bound."
   (org-gtd--validate-required-options obj '(:global-config :table)))
 
+(cl-defmethod org-gtd--init :before ((obj org-gtd--context))
+  ":name must be specified, and must be a string."
+  (org-gtd--validate-required-options obj '(:name))
+  (org-gtd--validate-option-type obj :name #'stringp))
+
+(cl-defmethod org-gtd--init :before ((obj org-gtd--next-action))
+  ":context is optionally a list of contexts."
+  (org-gtd--validate-required-options obj '(:context))
+  (org-gtd--validate-option-type obj :context (org-gtd--type-maybe-of (org-gtd--type--list-of #'org-gtd--context-p))))
+
 (defun org-gtd-definst (class &rest args)
   "Define an instance of CLASS using the given ARGS."
   (let ((inst (apply class args)))
@@ -291,36 +346,68 @@ the body.")
 ;;;;;;;;;;;;;
 
 
-(cl-defgeneric org-gtd--parse-from-org (class org-text)
-  "Parse an instance of CLASS from ORG-TEXT.")
+(cl-defgeneric org-gtd--parse-from-org (class config org-text)
+  "Parse an instance of CLASS from ORG-TEXT, with global config CONFIG.")
 
-(cl-defmethod org-gtd--parse-from-org ((_obj (subclass org-gtd--project-status)) org-text)
-  (org-gtd--project-status :display org-text))
+(cl-defmethod org-gtd--parse-from-org ((_obj (subclass org-gtd--project-status)) _config org-text)
+  (org-gtd-definst #'org-gtd--project-status :display org-text))
 
-(cl-defgeneric org-gtd--parse-entry-properties (obj args props)
-  "Specify how to parse PROPS as a specification of properties for OBJ.  Current specification is held in ARGS.")
+(cl-defmethod org-gtd--parse-from-org ((_obj (subclass org-gtd--context)) config org-text)
+  (let* ((context-tag-re (oref config context-tag-regex))
+         (context-text
+          (save-match-data
+            (string-match context-tag-re org-text)
+            (or (match-string-no-properties 1 org-text) (match-string-no-properties 0 org-text)))))
+    (org-gtd-definst #'org-gtd--context :name context-text)))
 
-(cl-defmethod org-gtd--parse-entry-properties ((_ (subclass org-gtd--base)) args _props)
+(cl-defgeneric org-gtd--parse-entry-properties (obj config args props)
+  "Specify how to parse PROPS as a specification of properties for OBJ.
+
+Current specification is held in ARGS.
+CONFIG holds the current global configuration.")
+
+(cl-defmethod org-gtd--parse-entry-properties ((_ (subclass org-gtd--base)) _config args _props)
   "When we hit the base class, we simply return ARGS as a base case."
   args)
 
-(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--item)) args props)
-  (cl-call-next-method obj (-concat args (list
-                                          :id (org-gtd--alist-get "ID" props)
-                                          :title (org-gtd--alist-get "ITEM" props)))
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--item)) config args props)
+  (cl-call-next-method obj config (-concat args (list
+                                                 :id (org-gtd--alist-get "ID" props)
+                                                 :title (org-gtd--alist-get "ITEM" props)))
                        props))
 
-(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--has-parent-projects)) args props)
-  (cl-call-next-method obj (-concat args (list :projects (let ((projects-string (org-gtd--alist-get "ORG_GTD_PROJECTS" props))) (and projects-string (read projects-string))))) props))
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--has-parent-projects)) config args props)
+  (cl-call-next-method obj config (-concat args (list :projects (let ((projects-string (org-gtd--alist-get "ORG_GTD_PROJECTS" props))) (and projects-string (read projects-string))))) props))
 
-(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--project)) args props)
-  (cl-call-next-method obj (-concat args (list :status (let ((status-string (org-gtd--alist-get "ORG_GTD_STATUS" props)))
-                                                         (and status-string (org-gtd--parse-from-org 'org-gtd--project-status status-string))))) props))
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--project)) config args props)
+  (cl-call-next-method obj config (-concat args (list :status (let ((status-string (org-gtd--alist-get "ORG_GTD_STATUS" props)))
+                                                         (and status-string (org-gtd--parse-from-org #'org-gtd--project-status config status-string))))) props))
 
-(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--config)) args props)
+(cl-defmethod org-gtd--parse-entry-properties ((obj (subclass org-gtd--next-action)) config args props)
+  (let ((tags-string (org-gtd--alist-get "TAGS" props)))
+    (let ((contexts
+           (if tags-string
+               (let* ((tags (org-gtd--tag-string-to-list tags-string))
+                      (context-re (oref config context-tag-regex))
+                      (context-tags (--filter (string-match-p context-re it) tags)))
+                 (org-gtd--some (--map (org-gtd--parse-from-org #'org-gtd--context config it) context-tags)))
+             (org-gtd--none))))
+      (cl-call-next-method obj config (-concat args (list :context contexts)) props))))
+
+(cl-defgeneric org-gtd--parse-entry-properties-no-config (obj args props)
+  "Specify how to parse PROPS as a specification of properties for OBJ.
+
+Current specification is held in ARGS.")
+
+(cl-defmethod org-gtd--parse-entry-properties-no-config ((_ (subclass org-gtd--base)) args _props)
+  "When we hit the base class, we simply return ARGS as a base case."
+  args)
+
+(cl-defmethod org-gtd--parse-entry-properties-no-config ((obj (subclass org-gtd--config)) args props)
   (let* ((status-raw (org-gtd--alist-get "ORG_GTD_PROJECT_STATUSES" props))
-         (statuses (mapcar (-partial #'org-gtd--project-status :display) (split-string status-raw "[ |]" t))))
-  (cl-call-next-method obj (-concat args (list :statuses statuses))
+         (statuses (mapcar (-partial #'org-gtd--project-status :display) (split-string status-raw "[ |]" t)))
+         (context-tag-re (org-gtd--alist-get "ORG_GTD_CONTEXT_TAG_REGEX" props)))
+  (cl-call-next-method obj (-concat args (list :statuses statuses :context-tag-regex context-tag-re))
                        props)))
 
 
