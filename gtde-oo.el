@@ -23,7 +23,6 @@
 ;;; Code:
 
 (require 'eieio)
-(require 'org-id)
 
 
 ;;;;;;;;;;;;;;;;;;;
@@ -68,15 +67,6 @@ Return NIL if the slot is unbound."
   `(with-current-buffer
      (set-buffer (marker-buffer ,marker))
      (goto-char (marker-position ,marker))
-     (progn ,@body)))
-
-(defmacro gtde--with-visiting-org-marker (marker &rest body)
-  "Execute BODY with MARKER position active for editing.
-
-This ensures that the edit is performed in Org mode."
-  (declare (indent 1) (debug t))
-  `(gtde--with-visiting-marker ,marker
-     (org-mode)
      (progn ,@body)))
 
 (defun gtde--tag-string-to-list (org-tag-string)
@@ -248,23 +238,8 @@ This ensures that the edit is performed in Org mode."
 (define-error 'gtde--unsupported-gtd-type
   "Unsupported GTD type")
 
-(defun gtde--build-db-from-files (files)
-  "Build a database from FILES."
-  (let ((configs (org-map-entries (lambda () (apply #'gtde-definst #'gtde--config (gtde--parse-entry-properties-no-config #'gtde--config nil (org-entry-properties)))) "GTDE_IS_CONFIG=\"t\"" files)))
-    (let* ((config (car configs))
-           (db (gtde--new-db config)))
-      (org-map-entries
-       (lambda ()
-         (let* ((properties (org-entry-properties))
-                (id (gtde--alist-get "ID" properties))
-                (type (gtde--alist-get "GTDE_TYPE" properties))
-                (class-for-parsing (gtde--get-class-for-parsing type)))
-           (let ((entry-to-add
-                  (if class-for-parsing (apply #'gtde-definst class-for-parsing (gtde--parse-entry-properties class-for-parsing config nil properties))
-                    (when type (signal 'gtde--unsupported-gtd-type type)))))
-             (when entry-to-add (gtde--db-add-entry db id entry-to-add)))))
-       nil files)
-      db)))
+(cl-defgeneric gtde--build-db-from-files (project-type files)
+  "Build database for the given PROJECT-TYPE from FILES.")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -345,69 +320,50 @@ the body.")
 ;;;;;;;;;;;;;
 
 
-(cl-defgeneric gtde--parse-from-org (class config org-text)
-  "Parse an instance of CLASS from ORG-TEXT, with global config CONFIG.")
+(cl-defgeneric gtde--parse-from-raw (project-type class config text)
+  "Parse an instance of CLASS from TEXT.
 
-(cl-defmethod gtde--parse-from-org ((_obj (subclass gtde--project-status)) _config org-text)
-  (gtde-definst #'gtde--project-status :display org-text))
+CONFIG is the available configuration context.
+PROJECT-TYPE is the project type for parsing (e.g., org, JSON, etc.).")
 
-(cl-defmethod gtde--parse-from-org ((_obj (subclass gtde--context)) config org-text)
+(cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--project-status)) _config text)
+  (gtde-definst #'gtde--project-status :display text))
+
+(cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--context)) config text)
   (let* ((context-tag-re (oref config context-tag-regex))
          (context-text
           (save-match-data
-            (string-match context-tag-re org-text)
-            (or (match-string-no-properties 1 org-text) (match-string-no-properties 0 org-text)))))
+            (string-match context-tag-re text)
+            (or (match-string-no-properties 1 text) (match-string-no-properties 0 text)))))
     (gtde-definst #'gtde--context :name context-text)))
 
-(cl-defgeneric gtde--parse-entry-properties (obj config args props)
+(cl-defgeneric gtde--parse-entry-properties (project-type obj config args props)
   "Specify how to parse PROPS as a specification of properties for OBJ.
 
 Current specification is held in ARGS.
-CONFIG holds the current global configuration.")
+CONFIG holds the current global configuration.
+PROJECT-TYPE is the type of the project (e.g., org, json, etc.).")
 
-(cl-defmethod gtde--parse-entry-properties ((_ (subclass gtde--base)) _config args _props)
+(cl-defmethod gtde--parse-entry-properties (_pt (_ (subclass gtde--base)) _config args _props)
   "When we hit the base class, we simply return ARGS as a base case."
   args)
 
-(cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--item)) config args props)
-  (cl-call-next-method obj config (-concat args (list
-                                                 :id (gtde--alist-get "ID" props)
-                                                 :title (gtde--alist-get "ITEM" props)))
-                       props))
+(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--has-parent-projects)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
 
-(cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--has-parent-projects)) config args props)
-  (cl-call-next-method obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
+(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--project)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gtde--alist-get "GTDE_STATUS" props)))
+                                                         (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
 
-(cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--project)) config args props)
-  (cl-call-next-method obj config (-concat args (list :status (let ((status-string (gtde--alist-get "GTDE_STATUS" props)))
-                                                         (and status-string (gtde--parse-from-org #'gtde--project-status config status-string))))) props))
-
-(cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--next-action)) config args props)
-  (let ((tags-string (gtde--alist-get "TAGS" props)))
-    (let ((contexts
-           (if tags-string
-               (let* ((tags (gtde--tag-string-to-list tags-string))
-                      (context-re (oref config context-tag-regex))
-                      (context-tags (--filter (string-match-p context-re it) tags)))
-                 (gtde--some (--map (gtde--parse-from-org #'gtde--context config it) context-tags)))
-             (gtde--none))))
-      (cl-call-next-method obj config (-concat args (list :context contexts)) props))))
-
-(cl-defgeneric gtde--parse-entry-properties-no-config (obj args props)
+(cl-defgeneric gtde--parse-entry-properties-no-config (project-type obj args props)
   "Specify how to parse PROPS as a specification of properties for OBJ.
 
-Current specification is held in ARGS.")
+Current specification is held in ARGS.
+PROJECT-TYPE is the current project type.")
 
-(cl-defmethod gtde--parse-entry-properties-no-config ((_ (subclass gtde--base)) args _props)
+(cl-defmethod gtde--parse-entry-properties-no-config (_pt (_ (subclass gtde--base)) args _props)
   "When we hit the base class, we simply return ARGS as a base case."
   args)
-
-(cl-defmethod gtde--parse-entry-properties-no-config ((obj (subclass gtde--config)) args props)
-  (let* ((status-raw (gtde--alist-get "GTDE_PROJECT_STATUSES" props))
-         (statuses (mapcar (-partial #'gtde--project-status :display) (split-string status-raw "[ |]" t)))
-         (context-tag-re (gtde--alist-get "GTDE_CONTEXT_TAG_REGEX" props)))
-  (cl-call-next-method obj (-concat args (list :statuses statuses :context-tag-regex context-tag-re))
-                       props)))
 
 
 ;;;;;;;;;;;;;;;
@@ -415,30 +371,8 @@ Current specification is held in ARGS.")
 ;;;;;;;;;;;;;;;
 
 
-(cl-defgeneric gtde--render-to-org (obj)
-  "Render OBJ as Org text.")
-
-(cl-defmethod gtde--render-to-org ((obj gtde--project-status))
-  (oref obj display))
-
-(cl-defgeneric gtde--write-to-org (obj)
-  "Write OBJ to the current Org entry.")
-
-(cl-defmethod gtde--write-to-org ((obj gtde--item))
-  (org-edit-headline (oref obj title)))
-
-(cl-defmethod gtde--write-to-org ((obj gtde--project))
-  (org-set-property "GTDE_STATUS" (gtde--render-to-org (oref obj status)))
-  (cl-call-next-method obj))
-
-(defun gtde--write-item-to-file (file item)
-  "Write the given ITEM to the given FILE."
-  (let ((pos (org-id-find-id-in-file (oref item id) file t)))
-    (if pos
-        (gtde--with-visiting-org-marker pos
-          (gtde--write-to-org item)
-          (save-buffer))
-      (error "Could not find entry %s" (oref item id)))))
+(cl-defgeneric gtde--write-item-to-file (project-type file item)
+  "Write the given ITEM to the given FILE with PROJECT-TYPE.")
 
 
 (provide 'gtde-oo)

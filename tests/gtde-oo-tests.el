@@ -3,7 +3,7 @@
 
 
 (require 'dash)
-(require 'gtde-oo)
+(require 'gtde-org)
 
 
 (defun gtde-test--find-test-case-file (basename)
@@ -56,7 +56,7 @@ TEXT is inserted into the new file."
 
 (defun gtde-test--find-item-by-id-in-file (id file)
   "Find the item with given ID in FILE."
-  (let ((db (gtde--build-db-from-files (list file))))
+  (let ((db (gtde--build-db-from-files 'org (list file))))
     (gtde--db-get-entry db id)))
 
 
@@ -77,7 +77,7 @@ TEXT is inserted into the new file."
 
 (ert-deftest gtde-oo-test:gtde--build-db-from-files ()
   "Tests for `gtde--build-db-from-files'."
-  (let ((db (gtde--build-db-from-files (list (gtde-test--find-test-case-file "01-simple.org")))))
+  (let ((db (gtde--build-db-from-files 'org (list (gtde-test--find-test-case-file "01-simple.org")))))
 
     ;; correct IDs should be parsed into items
     (should (equal (-sort #'string-lessp (hash-table-keys (oref db table)))
@@ -121,14 +121,14 @@ TEXT is inserted into the new file."
 
   ;; unsupported GTD type
   (should (equal "something_unsupported"
-                 (cdr (should-error (gtde--build-db-from-files (list (gtde-test--find-test-case-file "02-bad.org"))) :type 'gtde--unsupported-gtd-type)))))
+                 (cdr (should-error (gtde--build-db-from-files 'org (list (gtde-test--find-test-case-file "02-bad.org"))) :type 'gtde--unsupported-gtd-type)))))
 
-(ert-deftest gtde-oo-test:parse-from-org ()
-  "Tests for `gtde--parse-from-org'."
+(ert-deftest gtde-oo-test:parse-from-raw ()
+  "Tests for `gtde--parse-from-raw'."
   (let ((config1 (gtde--config :statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@\\(.*\\)"))
         (config2 (gtde--config :statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@.*")))
-    (should (equal (gtde--context :name "test") (gtde--parse-from-org #'gtde--context config1 "@test")))
-    (should (equal (gtde--context :name "@test") (gtde--parse-from-org #'gtde--context config2 "@test")))))
+    (should (equal (gtde--context :name "test") (gtde--parse-from-raw 'org #'gtde--context config1 "@test")))
+    (should (equal (gtde--context :name "@test") (gtde--parse-from-raw 'org #'gtde--context config2 "@test")))))
 
 (ert-deftest gtde-oo-test:write-item-to-file ()
   "Tests for `gtde--write-item-to-file'."
@@ -152,8 +152,8 @@ TEXT is inserted into the new file."
         (example-action (gtde--next-action :title "Modified action title" :id "01-test-action"))
         (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE"))))
     (gtde-test--with-temp-org-file "test-file" case-text fvar
-      (gtde--write-item-to-file fvar example-project)
-      (gtde--write-item-to-file fvar example-action)
+      (gtde--write-item-to-file 'org fvar example-project)
+      (gtde--write-item-to-file 'org fvar example-action)
       (should (equal example-project (gtde-test--find-item-by-id-in-file "01-test-project" fvar)))
       (should (equal example-action (gtde-test--find-item-by-id-in-file "01-test-action" fvar))))))
 
