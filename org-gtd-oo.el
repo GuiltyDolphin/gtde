@@ -324,6 +324,11 @@ the body.")
   "We require the `:global-config' and `:table' arguments to be bound."
   (org-gtd--validate-required-options obj '(:global-config :table)))
 
+(cl-defmethod org-gtd--init :before ((obj org-gtd--project))
+  ":status must be a status, and must be specified."
+  (org-gtd--validate-required-options obj '(:status))
+  (org-gtd--validate-option-type obj :status #'org-gtd--project-status-p))
+
 (cl-defmethod org-gtd--init :before ((obj org-gtd--context))
   ":name must be specified, and must be a string."
   (org-gtd--validate-required-options obj '(:name))
