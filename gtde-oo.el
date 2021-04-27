@@ -266,6 +266,7 @@ This ensures that the edit is performed in Org mode."
        nil files)
       db)))
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Class methods ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
