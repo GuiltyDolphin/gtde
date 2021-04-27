@@ -246,7 +246,7 @@ This ensures that the edit is performed in Org mode."
   (puthash id entry (oref db table)))
 
 (define-error 'gtde--unsupported-gtd-type
-  "Not a valid value for GTDE_TYPE")
+  "Unsupported GTD type")
 
 (defun gtde--build-db-from-files (files)
   "Build a database from FILES."
