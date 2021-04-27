@@ -11,4 +11,4 @@ install :
 
 test : clean
 	@cask build \
-	&& cask emacs -batch -q -l tests/gtde-*.el -f ert-run-tests-batch-and-exit
+	&& cask emacs -batch -q --load=tests/gtde-oo-tests.el -f ert-run-tests-batch-and-exit
