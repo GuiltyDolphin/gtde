@@ -1,3 +1,5 @@
-* org-gtd
+* Getting Things Done in Emacs (=gtde.el=)
 
-Interactive GTD workflow for org-mode
+This project provides a suite of tools for Getting Things Done
+in Emacs, with support for Org mode (and hopefully other
+formats in the future).

@@ -1,4 +1,4 @@
-;;; org-gtd-ui.el --- org-gtd user interaction interface.
+;;; gtde-ui.el --- gtde user interaction interface.
 
 ;; Copyright (C) 2021 Ben Moon
 ;; Author: Ben Moon <software@guiltydolphin.com>
@@ -18,9 +18,9 @@
 
 ;;; Commentary:
 ;;;
-;;; Defines org-gtd user interaction interface.
+;;; Defines gtde user interaction interface.
 ;;;
 ;;; Code:
 
-(provide 'org-gtd-ui)
-;;; org-gtd-ui.el ends here
+(provide 'gtde-ui)
+;;; gtde-ui.el ends here

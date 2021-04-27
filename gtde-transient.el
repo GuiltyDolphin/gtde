@@ -1,4 +1,4 @@
-;;; org-gtd-transient.el --- org-gtd transient interface.
+;;; gtde-transient.el --- gtde transient interface.
 
 ;; Copyright (C) 2020-2021 Ben Moon
 ;; Author: Ben Moon <software@guiltydolphin.com>
@@ -18,7 +18,7 @@
 
 ;;; Commentary:
 ;;;
-;;; Defines org-gtd functionality for interfacing with transient.
+;;; Defines gtde functionality for interfacing with transient.
 ;;;
 ;;; Code:
 
@@ -32,16 +32,16 @@
 ;;; Helpers
 
 
-(defun org-gtd--map-put (map key value)
+(defun gtde--map-put (map key value)
   "Set the value of KEY in MAP to VALUE."
   (let ((elt (assoc key map)))
     (if elt (progn (setcdr elt value) map) (cons (cons key value) map))))
 
-(defun org-gtd--map-get (map key)
+(defun gtde--map-get (map key)
   "Get the value at KEY in MAP, if any."
   (alist-get key map nil nil #'equal))
 
-(defun org-gtd--map-member (map key)
+(defun gtde--map-member (map key)
   "Return non-NIL if there is an entry for KEY in MAP."
   (assoc key map))
 
@@ -49,7 +49,7 @@
 ;;; Classes
 
 
-(defclass org-gtd-transient--reader ()
+(defclass gtde-transient--reader ()
   ((multi-value :initarg :multi-value :initform nil
                 :documentation "T if multiple values can be read at once.")
    (prompt :initarg :prompt :documentation "Prompt to use when reading values.")
@@ -62,7 +62,7 @@
               :documentation "Function used to transform the value read."))
   :documentation "Base class for readers.")
 
-(defclass org-gtd-transient--component (transient-child)
+(defclass gtde-transient--component (transient-child)
   (
    ;; NOTE: I've had to add these 'inapt' fields as they are part of
    ;; transient-suffix, but not transient-child, and errors were being
@@ -103,27 +103,27 @@
   :documentation "Abstract class for individual components."
   :abstract t)
 
-(defclass org-gtd-transient--non-interactive (org-gtd-transient--component)
+(defclass gtde-transient--non-interactive (gtde-transient--component)
   (())
   :documentation "Abstract class for non-interactive components.
 
 Objects that inherit from this class are not expected to provide a key."
   :abstract t)
 
-(defclass org-gtd-transient--targeted (org-gtd-transient--component)
+(defclass gtde-transient--targeted (gtde-transient--component)
   ((target-id :initarg :target-id :documentation "Identifier of the target component."))
   :documentation "Class for components which can target others."
   :abstract t)
 
-(cl-defgeneric org-gtd-transient--target (obj)
+(cl-defgeneric gtde-transient--target (obj)
   "Determine the target component of OBJ.")
 
-(cl-defgeneric org-gtd-transient--set-target-value (obj val &optional tactic)
+(cl-defgeneric gtde-transient--set-target-value (obj val &optional tactic)
   "Set the value of OBJ's target to VAL.
 
 TACTIC, if specified, determines how to combine existing and new values.")
 
-(defclass org-gtd-transient--display (org-gtd-transient--targeted org-gtd-transient--non-interactive)
+(defclass gtde-transient--display (gtde-transient--targeted gtde-transient--non-interactive)
   ((description :initarg :description :documentation "Description of the component.")
    (command :initarg :command :initform ignore)
    (format :initarg :format :initform "%d %v")
@@ -131,7 +131,7 @@ TACTIC, if specified, determines how to combine existing and new values.")
              :documentation "Optional function used to render the targeted value."))
   :documentation "Class for displaying the value of another component.")
 
-(defclass org-gtd-transient--setter (transient-suffix org-gtd-transient--targeted)
+(defclass gtde-transient--setter (transient-suffix gtde-transient--targeted)
   ((transient :initarg :transient :initform 'transient--do-call)
    (reader :initarg :reader :documentation "Configuration for reading values."))
   :documentation "Interactive element that reads a value from the user, and sets an in-scope variable based on that value.")
@@ -140,16 +140,16 @@ TACTIC, if specified, determines how to combine existing and new values.")
 ;;;; Dates
 
 
-(defclass org-gtd-transient--date-reader (org-gtd-transient--reader)
+(defclass gtde-transient--date-reader (gtde-transient--reader)
   (())
   :documentation "Class for reading dates.")
 
-(defclass org-gtd-transient--date-display (org-gtd-transient--display)
+(defclass gtde-transient--date-display (gtde-transient--display)
   ((date-format :initarg :date-format :initform "%c" :documentation "Format used to display the date (see `format-time-string' for available formats).")
    (date-format-no-time :initarg :date-format-no-time :documentation "Format used to display the date when there is no time specified. Defaults to use the :date-format property."))
   :documentation "Class for displaying dates.")
 
-(defclass org-gtd--date ()
+(defclass gtde--date ()
   ((time-string :initarg :time-string)
    (time-specified :initarg :time-specified :documentation "Whether the user specified a time and not just a date.")
    (internal-time :initarg :internal-time :documentation "Internal time value represented by the date."))
@@ -159,62 +159,62 @@ TACTIC, if specified, determines how to combine existing and new values.")
 ;;; Init
 
 
-(cl-defmethod transient-init-scope ((_ org-gtd-transient--component))
+(cl-defmethod transient-init-scope ((_ gtde-transient--component))
   "Noop." nil)
 
-(defun org-gtd-transient--var-env ()
+(defun gtde-transient--var-env ()
   "Get the variable environment for the current prefix."
   (oref transient--prefix scope))
 
-(defun org-gtd-transient--set-var-env (env)
+(defun gtde-transient--set-var-env (env)
   "Set the current variable environment to ENV."
   (oset transient--prefix scope env))
 
-(defun org-gtd-transient--var-val (var)
+(defun gtde-transient--var-val (var)
   "Get the value of VAR in the current environment."
-  (org-gtd--map-get (org-gtd-transient--var-env) var))
+  (gtde--map-get (gtde-transient--var-env) var))
 
-(defun org-gtd-transient--set-var-val (var val)
+(defun gtde-transient--set-var-val (var val)
   "Set the value of VAR to VAL in the current environment."
-  (org-gtd-transient--set-var-env
-   (org-gtd--map-put (org-gtd-transient--var-env) var val)))
+  (gtde-transient--set-var-env
+   (gtde--map-put (gtde-transient--var-env) var val)))
 
-(defun org-gtd-transient--initialize-variable (var)
+(defun gtde-transient--initialize-variable (var)
   "Initialize VAR for the current prefix environment."
-  (let ((var-vals (org-gtd-transient--var-env)))
-    (unless (org-gtd--map-member var-vals var)
-      (org-gtd-transient--set-var-val var nil))))
+  (let ((var-vals (gtde-transient--var-env)))
+    (unless (gtde--map-member var-vals var)
+      (gtde-transient--set-var-val var nil))))
 
-(cl-defmethod transient-init-scope ((obj org-gtd-transient--targeted))
-  (org-gtd-transient--initialize-variable (oref obj target-id)))
+(cl-defmethod transient-init-scope ((obj gtde-transient--targeted))
+  (gtde-transient--initialize-variable (oref obj target-id)))
 
-(cl-defmethod transient--init-suffix-key ((_ org-gtd-transient--non-interactive)))
+(cl-defmethod transient--init-suffix-key ((_ gtde-transient--non-interactive)))
 
 
 ;;; Targeting
 
 
-(cl-defmethod org-gtd-transient--target ((obj org-gtd-transient--targeted))
+(cl-defmethod gtde-transient--target ((obj gtde-transient--targeted))
   "Get the target of the current object."
   (oref obj target-id))
 
-(defun org-gtd-transient--target-value (obj)
+(defun gtde-transient--target-value (obj)
   "Get the value of the target of OBJ."
-  (org-gtd-transient--var-val (org-gtd-transient--target obj)))
+  (gtde-transient--var-val (gtde-transient--target obj)))
 
 
 ;;; Render
 
 
-(cl-defgeneric org-gtd-transient--render-to-input-text (obj)
+(cl-defgeneric gtde-transient--render-to-input-text (obj)
   "Render OBJ to input text for user entry and display.
 
 The rendered form should be suitable for re-parsing into an equal object (in the current state).")
 
-(cl-defmethod org-gtd-transient--render-to-input-text ((obj org-gtd--project-status))
+(cl-defmethod gtde-transient--render-to-input-text ((obj gtde--project-status))
   (oref obj display))
 
-(cl-defmethod org-gtd-transient--render-to-input-text ((obj t))
+(cl-defmethod gtde-transient--render-to-input-text ((obj t))
   "Resort to basic formatting if OBJ doesn't match any other case."
   (format "%s" obj))
 
@@ -222,21 +222,21 @@ The rendered form should be suitable for re-parsing into an equal object (in the
 ;;; Read
 
 
-(defvar org-gtd-transient--history nil "Completion history for transients.")
+(defvar gtde-transient--history nil "Completion history for transients.")
 
-(defun org-gtd-transient--get-history (prefix suffix)
+(defun gtde-transient--get-history (prefix suffix)
   "Get the history for SUFFIX under PREFIX."
-  (copy-alist (alist-get (oref suffix command) (alist-get (oref prefix command) org-gtd-transient--history))))
+  (copy-alist (alist-get (oref suffix command) (alist-get (oref prefix command) gtde-transient--history))))
 
-(defun org-gtd-transient--add-to-history (prefix suffix value)
+(defun gtde-transient--add-to-history (prefix suffix value)
   "Add VALUE to the history for SUFFIX under PREFIX."
-  (let ((hist (org-gtd-transient--get-history prefix suffix)))
-    (setf (alist-get (oref suffix command) (alist-get (oref prefix command) org-gtd-transient--history)) (-uniq (cons value hist)))))
+  (let ((hist (gtde-transient--get-history prefix suffix)))
+    (setf (alist-get (oref suffix command) (alist-get (oref prefix command) gtde-transient--history)) (-uniq (cons value hist)))))
 
-(cl-defgeneric org-gtd-transient--read (obj)
+(cl-defgeneric gtde-transient--read (obj)
   "Read a value according to the specification of OBJ.")
 
-(cl-defmethod org-gtd-transient--read ((reader org-gtd-transient--reader) &optional value)
+(cl-defmethod gtde-transient--read ((reader gtde-transient--reader) &optional value)
   "Read a value according to the specification of READER.
 
 VALUE, if specified, indicates the existing value of the target being read for."
@@ -247,8 +247,8 @@ VALUE, if specified, indicates the existing value of the target being read for."
            (choices (if (functionp choices) (funcall choices) choices))
            (value-str
             (if multi-value
-                (mapconcat (lambda (v) (org-gtd-transient--render-to-input-text v)) value ",") (org-gtd-transient--render-to-input-text value)))
-           (history-raw (org-gtd-transient--get-history prefix suffix))
+                (mapconcat (lambda (v) (gtde-transient--render-to-input-text v)) value ",") (gtde-transient--render-to-input-text value)))
+           (history-raw (gtde-transient--get-history prefix suffix))
            (history-with-value (if (or (null value-str)
                                        (equal value-str (car history-raw)))
                                    history-raw
@@ -270,49 +270,49 @@ VALUE, if specified, indicates the existing value of the target being read for."
         (when (bound-and-true-p ivy-mode)
           (set-text-properties 0 (length (car transient--history)) nil
                                (car transient--history)))
-        (org-gtd-transient--add-to-history prefix suffix value))
+        (gtde-transient--add-to-history prefix suffix value))
       (if on-result (funcall on-result value) value))))
 
-(cl-defmethod org-gtd-transient--read ((reader org-gtd-transient--date-reader) &optional value)
+(cl-defmethod gtde-transient--read ((reader gtde-transient--date-reader) &optional value)
   "Read a date value according to the specification of READER.
 
 VALUE, if specified, indicates the existing value of the target being read for."
   (with-slots (prompt) reader
     (let* ((user-date (org-read-date nil nil nil prompt))
            (time-specified (string-match-p ":" user-date)))
-      (org-gtd--date :time-string user-date :time-specified time-specified :internal-time (org-time-string-to-time user-date)))))
+      (gtde--date :time-string user-date :time-specified time-specified :internal-time (org-time-string-to-time user-date)))))
 
-(cl-defmethod org-gtd-transient--read ((obj org-gtd-transient--setter))
-  (org-gtd-transient--read (oref obj reader) (org-gtd-transient--target-value obj)))
+(cl-defmethod gtde-transient--read ((obj gtde-transient--setter))
+  (gtde-transient--read (oref obj reader) (gtde-transient--target-value obj)))
 
 
 ;;; Set
 
 
-(cl-defmethod org-gtd-transient--set-target-value ((obj org-gtd-transient--setter) val &optional tactic)
+(cl-defmethod gtde-transient--set-target-value ((obj gtde-transient--setter) val &optional tactic)
   "Set the value of the current setter target to VAL.
 
 If specified, use TACTIC instead of the merge tactic of the setter's target."
-  (org-gtd-transient--set-var-val (org-gtd-transient--target obj) val))
+  (gtde-transient--set-var-val (gtde-transient--target obj) val))
 
 
 ;;; Draw
 
 
-(cl-defgeneric org-gtd-transient--format-value-pretty (obj)
+(cl-defgeneric gtde-transient--format-value-pretty (obj)
   "Format the value of OBJ in as pretty a manner as possible.")
 
-(cl-defmethod transient-format ((obj org-gtd-transient--display))
+(cl-defmethod transient-format ((obj gtde-transient--display))
   "Return a string generated using OBJ's `format'.
 %d is formatted using `transient-format-description'.
 %v is formatted using `transient-format-value'.
-%V is formatted using `org-gtd-transient--format-value-pretty'."
+%V is formatted using `gtde-transient--format-value-pretty'."
   (format-spec (oref obj format)
                `((?d . ,(transient-format-description obj))
                  (?v . ,(transient-format-value obj))
-                 (?V . ,(org-gtd-transient--format-value-pretty obj)))))
+                 (?V . ,(gtde-transient--format-value-pretty obj)))))
 
-(cl-defmethod transient-format-description ((obj org-gtd-transient--display))
+(cl-defmethod transient-format-description ((obj gtde-transient--display))
   "Format the description by calling the next method.
 
 If the result doesn't use the `face' property at all, then apply
@@ -322,20 +322,20 @@ the face `transient-heading' to the complete string."
         desc
       (propertize desc 'face 'transient-heading))))
 
-(defun org-gtd--propertize-with-defaults (s v)
+(defun gtde--propertize-with-defaults (s v)
   "Propertize string S formatted from value V, treating it as inactive if V is NIL."
   (propertize s 'face (if v 'transient-value 'transient-inactive-value)))
 
-(cl-defmethod transient-format-value ((obj org-gtd-transient--display))
+(cl-defmethod transient-format-value ((obj gtde-transient--display))
   "When formatting a value for a display component, we display the value of the target."
-  (let* ((val (org-gtd-transient--target-value obj))
+  (let* ((val (gtde-transient--target-value obj))
          (renderer (oref obj renderer))
          (val-rendered (if (functionp renderer) (funcall renderer val) val)))
-    (org-gtd--propertize-with-defaults (format "%s" val-rendered) val-rendered)))
+    (gtde--propertize-with-defaults (format "%s" val-rendered) val-rendered)))
 
-(cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--display))
+(cl-defmethod gtde-transient--format-value-pretty ((obj gtde-transient--display))
   "When formatting a value for a display component, we display the value of the target."
-  (let* ((value (org-gtd-transient--target-value obj))
+  (let* ((value (gtde-transient--target-value obj))
          (renderer (oref obj renderer))
          (propertize-value (lambda (v)
                              (let ((val-rendered (if renderer (funcall renderer v) v)))
@@ -343,7 +343,7 @@ the face `transient-heading' to the complete string."
     (if value
         (cond
          ;; got a date, try and format it nicely
-         ((cl-typep value #'org-gtd--date)
+         ((cl-typep value #'gtde--date)
           (funcall propertize-value (format-time-string (if (oref value time-specified) "%FT%H:%M" "%F") (oref value internal-time))))
          ;; with a list, display on multiple lines if there are multiple elements, otherwise display on a single line
          ((listp value)
@@ -356,15 +356,15 @@ the face `transient-heading' to the complete string."
          (t (funcall propertize-value value)))
       (propertize "unset" 'face 'transient-inactive-value))))
 
-(cl-defmethod org-gtd-transient--format-value-pretty ((obj org-gtd-transient--date-display))
+(cl-defmethod gtde-transient--format-value-pretty ((obj gtde-transient--date-display))
   "Pretty display of a date."
   (with-slots (date-format date-format-no-time) obj
-    (let ((val (org-gtd-transient--target-value obj)))
-      (org-gtd--propertize-with-defaults
+    (let ((val (gtde-transient--target-value obj)))
+      (gtde--propertize-with-defaults
        (if val (format-time-string (if (oref val time-specified) date-format
                                      (or (and (slot-boundp obj 'date-format-no-time) date-format-no-time) date-format))
                                    (oref val internal-time)) "") val))))
 
 
-(provide 'org-gtd-transient)
-;;; org-gtd-transient.el ends here
+(provide 'gtde-transient)
+;;; gtde-transient.el ends here

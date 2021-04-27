@@ -9,11 +9,17 @@
   - transient :: 0.3.0
 - new files
   - =Makefile=
-  - =org-gtd-oo.el=
-  - =org-gtd-transient.el=
-  - =org-gtd-ui.el=
-  - =tests/org-gtd-oo-tests.el=
-  - =tests/org-gtd-tests.el=
+  - =gtde-oo.el=
+  - =gtde-transient.el=
+  - =gtde-ui.el=
+  - =tests/gtde-oo-tests.el=
+  - =tests/gtde-tests.el=
+
+** Changed
+
+- project renamed from =org-gtd= to =gtde= i.e., "Getting
+  Things Done in Emacs"
+- =org-gtd.el= renamed to =gtde.el=
 
 * 0.0.0 - 2020-05-03
 

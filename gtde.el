@@ -1,9 +1,9 @@
-;;; org-gtd.el --- Tools for working with GTD and org-mode -*- lexical-binding: t; -*-
+;;; gtde.el --- Getting Things Done in Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020-2021 Ben Moon
 ;; Author: Ben Moon <software@guiltydolphin.com>
-;; URL: https://github.com/GuiltyDolphin/org-gtd
-;; Git-Repository: git://github.com/GuiltyDolphin/org-gtd.git
+;; URL: https://github.com/GuiltyDolphin/gtde
+;; Git-Repository: git://github.com/GuiltyDolphin/gtde.git
 ;; Created: 2020-05-03
 ;; Version: 0.0.0
 ;; Keywords: outlines, tools
@@ -24,19 +24,19 @@
 
 ;;; Commentary:
 
-;; org-gtd provides tools for working with GTD workflows and org-mode.
+;; gtde provides tools for Getting Things Done in Emacs.
 ;;
 ;; For more information see the README.
 
 ;;; Code:
 
 
-(require 'org-gtd-transient)
+(require 'gtde-transient)
 
-(require 'org-gtd-oo)
+(require 'gtde-oo)
 
-(require 'org-gtd-ui)
+(require 'gtde-ui)
 
 
-(provide 'org-gtd)
-;;; org-gtd.el ends here
+(provide 'gtde)
+;;; gtde.el ends here
