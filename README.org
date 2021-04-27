@@ -3,3 +3,20 @@
 This project provides a suite of tools for Getting Things Done
 in Emacs, with support for Org mode (and hopefully other
 formats in the future).
+
+** Development
+
+The project is structured as follows:
+
+- =gtde.el= :: main package file, this should just =require=
+  from other files
+- =gtde-oo.el= :: class interface, provides most of the
+  back-end functionality
+- =gtde-transient.el= :: provides wrappers around the
+  =transient= package
+- =gtde-ui.el= :: provides definitions for user interface
+  interaction
+
+
+To test the project, first run =make install= (if you haven't
+already), then run =make test=.
