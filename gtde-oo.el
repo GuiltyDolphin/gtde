@@ -246,18 +246,18 @@ This ensures that the edit is performed in Org mode."
   (puthash id entry (oref db table)))
 
 (define-error 'gtde--unsupported-gtd-type
-  "Not a valid value for ORG_GTD_TYPE")
+  "Not a valid value for GTDE_TYPE")
 
 (defun gtde--build-db-from-files (files)
   "Build a database from FILES."
-  (let ((configs (org-map-entries (lambda () (apply #'gtde-definst #'gtde--config (gtde--parse-entry-properties-no-config #'gtde--config nil (org-entry-properties)))) "ORG_GTD_IS_CONFIG=\"t\"" files)))
+  (let ((configs (org-map-entries (lambda () (apply #'gtde-definst #'gtde--config (gtde--parse-entry-properties-no-config #'gtde--config nil (org-entry-properties)))) "GTDE_IS_CONFIG=\"t\"" files)))
     (let* ((config (car configs))
            (db (gtde--new-db config)))
       (org-map-entries
        (lambda ()
          (let* ((properties (org-entry-properties))
                 (id (gtde--alist-get "ID" properties))
-                (type (gtde--alist-get "ORG_GTD_TYPE" properties))
+                (type (gtde--alist-get "GTDE_TYPE" properties))
                 (class-for-parsing (gtde--get-class-for-parsing type)))
            (let ((entry-to-add
                   (if class-for-parsing (apply #'gtde-definst class-for-parsing (gtde--parse-entry-properties class-for-parsing config nil properties))
@@ -376,10 +376,10 @@ CONFIG holds the current global configuration.")
                        props))
 
 (cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--has-parent-projects)) config args props)
-  (cl-call-next-method obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "ORG_GTD_PROJECTS" props))) (and projects-string (read projects-string))))) props))
+  (cl-call-next-method obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
 
 (cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--project)) config args props)
-  (cl-call-next-method obj config (-concat args (list :status (let ((status-string (gtde--alist-get "ORG_GTD_STATUS" props)))
+  (cl-call-next-method obj config (-concat args (list :status (let ((status-string (gtde--alist-get "GTDE_STATUS" props)))
                                                          (and status-string (gtde--parse-from-org #'gtde--project-status config status-string))))) props))
 
 (cl-defmethod gtde--parse-entry-properties ((obj (subclass gtde--next-action)) config args props)
@@ -403,9 +403,9 @@ Current specification is held in ARGS.")
   args)
 
 (cl-defmethod gtde--parse-entry-properties-no-config ((obj (subclass gtde--config)) args props)
-  (let* ((status-raw (gtde--alist-get "ORG_GTD_PROJECT_STATUSES" props))
+  (let* ((status-raw (gtde--alist-get "GTDE_PROJECT_STATUSES" props))
          (statuses (mapcar (-partial #'gtde--project-status :display) (split-string status-raw "[ |]" t)))
-         (context-tag-re (gtde--alist-get "ORG_GTD_CONTEXT_TAG_REGEX" props)))
+         (context-tag-re (gtde--alist-get "GTDE_CONTEXT_TAG_REGEX" props)))
   (cl-call-next-method obj (-concat args (list :statuses statuses :context-tag-regex context-tag-re))
                        props)))
 
@@ -428,7 +428,7 @@ Current specification is held in ARGS.")
   (org-edit-headline (oref obj title)))
 
 (cl-defmethod gtde--write-to-org ((obj gtde--project))
-  (org-set-property "ORG_GTD_STATUS" (gtde--render-to-org (oref obj status)))
+  (org-set-property "GTDE_STATUS" (gtde--render-to-org (oref obj status)))
   (cl-call-next-method obj))
 
 (defun gtde--write-item-to-file (file item)
