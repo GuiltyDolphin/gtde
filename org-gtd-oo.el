@@ -151,13 +151,6 @@ This ensures that the edit is performed in Org mode."
             :documentation "Textual display of the status."))
   :documentation "Status of a project.")
 
-(defconst org-gtd--project-status--active
-  (org-gtd--project-status :display "ACTIVE"))
-(defconst org-gtd--project-status--cancelled
-  (org-gtd--project-status :display "CANCELLED"))
-(defconst org-gtd--project-status--complete
-  (org-gtd--project-status :display "COMPLETE"))
-
 (defclass org-gtd--config (org-gtd--base)
   ((statuses :initarg :statuses
              ;; NOTE: there are nicer error messages if you use `org-gtd-defist' with `org-gtd--validate-option-type'. (2021-04-23)
