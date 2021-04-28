@@ -142,23 +142,24 @@ TEXT is inserted into the new file."
   ;; all fields of projects and actions can be written
   (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action"))
         (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE"))))
-    (let ((case-text (concat "* Test config\n"
-                             ":PROPERTIES:\n"
-                             ":GTDE_IS_CONFIG: t\n"
-                             ":GTDE_PROJECT_STATUSES: ACTIVE | INACTIVE\n"
-                             ":GTDE_CONTEXT_TAG_REGEX: @\\(.*\\)\n"
-                             ":END:\n"
-                             "* Test action\n"
-                             ":PROPERTIES:\n"
-                             ":ID: 01-test-action\n"
-                             ":GTDE_TYPE: next_action\n"
-                             ":END:\n"
-                             "* Test project\n"
-                             ":PROPERTIES:\n"
-                             ":ID: 01-test-project\n"
-                             ":GTDE_TYPE: project\n"
-                             ":STATUS: ACTIVE\n"
-                             ":END:")))
+    (let ((case-text "
+* Test config
+:PROPERTIES:
+:GTDE_IS_CONFIG: t
+:GTDE_PROJECT_STATUSES: ACTIVE | INACTIVE
+:GTDE_CONTEXT_TAG_REGEX: @\\(.*\\)
+:END:
+* Test action
+:PROPERTIES:
+:ID: 01-test-action
+:GTDE_TYPE: next_action
+:END:
+* Test project
+:PROPERTIES:
+:ID: 01-test-project
+:GTDE_TYPE: project
+:STATUS: ACTIVE
+:END:"))
       (gtde-test--with-temp-org-file "test-file" case-text fvar
         (gtde--write-item-to-file 'org fvar example-project)
         (gtde--write-item-to-file 'org fvar example-action)
