@@ -47,19 +47,14 @@ TEXT is inserted automatically into the file."
                                              (kill-buffer buffer)))))
          (delete-file ,temp-file)))))
 
-(defmacro gtde-test--with-temp-org-file (prefix text fvar &rest body)
+(defmacro gtde-test--with-temp-file-for-project (pt prefix text fvar &rest body)
   "Create a temporary file with prefix PREFIX and execute BODY like `progn', with FVAR bound to the name of the temporary file.
 
-TEXT is inserted into the new file."
-  (declare (indent 3) (debug t))
-  `(gtde-test--with-temp-file ,prefix ".org" ,text ,fvar ,@body))
-
-(defmacro gtde-test--with-temp-json-file (prefix text fvar &rest body)
-  "Create a temporary file with prefix PREFIX and execute BODY like `progn', with FVAR bound to the name of the temporary file.
-
-TEXT is inserted into the new file."
+TEXT is inserted into the new file.
+PT is the project-type to create a file for."
   (declare (indent 4) (debug t))
-  `(gtde-test--with-temp-file ,prefix ".json" ,text ,fvar ,@body))
+  (let ((suffix (if (eq pt 'org) ".org" (if (eq pt 'json) "json"))))
+    `(gtde-test--with-temp-file ,prefix ,suffix ,text ,fvar ,@body)))
 
 (defun gtde-test--find-item-by-id-in-file (project-type id file)
   "Find the item with given ID in FILE with PROJECT-TYPE."
@@ -162,7 +157,7 @@ TEXT is inserted into the new file."
 :GTDE_TYPE: project
 :STATUS: ACTIVE
 :END:"))
-      (gtde-test--with-temp-org-file "test-file" case-text fvar
+      (gtde-test--with-temp-file-for-project 'org "test-file" case-text fvar
         (gtde--write-item-to-file 'org fvar example-project)
         (gtde--write-item-to-file 'org fvar example-action)
         (should (equal example-project (gtde-test--find-item-by-id-in-file 'org "01-test-project" fvar)))
@@ -186,8 +181,8 @@ TEXT is inserted into the new file."
       \"STATUS\": \"ACTIVE\"
   }
 }"))
-      (gtde-test--with-temp-json-file "test-file" case-text fvar
-                                      (gtde--write-item-to-file 'json fvar example-project)
+      (gtde-test--with-temp-file-for-project 'json "test-file" case-text fvar
+        (gtde--write-item-to-file 'json fvar example-project)
         (gtde--write-item-to-file 'json fvar example-action)
         (should (equal example-project (gtde-test--find-item-by-id-in-file 'json "01-test-project" fvar)))
         (should (equal example-action (gtde-test--find-item-by-id-in-file 'json "01-test-action" fvar)))))))
@@ -195,12 +190,10 @@ TEXT is inserted into the new file."
 (ert-deftest gtde-oo-test:build-db-from-files:no-such-file ()
   "Testing `gtde--build-db-from-files' when passed nonexistent files."
   ;;(should-error (gtde--parse-from-raw nil #'gtde--status
-  (gtde-test--with-temp-org-file "test-file" "" fvar
-    (delete-file fvar)
-    (should-error (gtde--build-db-from-files 'org (list fvar)) :type 'gtde--no-such-file))
-  (gtde-test--with-temp-json-file "test-file" "" fvar
-    (delete-file fvar)
-    (should-error (gtde--build-db-from-files 'json (list fvar)) :type 'gtde--no-such-file)))
+  (dolist (pt '(org json))
+    (gtde-test--with-temp-file-for-project pt "test-file" "" fvar
+      (delete-file fvar)
+      (should-error (gtde--build-db-from-files pt (list fvar)) :type 'gtde--no-such-file))))
 
 (ert-deftest gtde-oo-test:unknown-project-status ()
   "An unknown project status is specified."
