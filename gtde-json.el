@@ -36,6 +36,10 @@
 ;;;;;;;;;;;;;
 
 
+(cl-defmethod gtde--get-prop ((_pt (eql json)) key props)
+  "Lookup KEY in PROPS, which is a hash table for JSON projects."
+  (gethash key props))
+
 (cl-defmethod gtde--parse-entry-properties ((pt (eql json)) (obj (subclass gtde--item)) config args props)
   (cl-call-next-method pt obj config (-concat args (list
                                                     :id (gethash "id" props)
@@ -52,13 +56,6 @@
                  (gtde--some (--map (gtde--parse-from-raw pt #'gtde--context config it) context-tags)))
              (gtde--none))))
       (cl-call-next-method pt obj config (-concat args (list :context contexts)) props))))
-
-(cl-defmethod gtde--parse-entry-properties ((pt (eql json)) (obj (subclass gtde--has-parent-projects)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gethash "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
-
-(cl-defmethod gtde--parse-entry-properties ((pt (eql json)) (obj (subclass gtde--project)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gethash "GTDE_STATUS" props)))
-                                                         (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
 
 (cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql json)) (obj (subclass gtde--config)) args props)
   (let* ((status-raw (gethash "GTDE_PROJECT_STATUSES" props))

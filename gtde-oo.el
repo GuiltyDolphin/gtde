@@ -337,6 +337,9 @@ PROJECT-TYPE is the project type for parsing (e.g., org, JSON, etc.).")
             (or (match-string-no-properties 1 text) (match-string-no-properties 0 text)))))
     (gtde-definst #'gtde--context :name context-text)))
 
+(cl-defgeneric gtde--get-prop (project-type prop-name props)
+  "Get the property PROP-NAME from PROPS, a property dictionary for a PROJECT-TYPE setup.")
+
 (cl-defgeneric gtde--parse-entry-properties (project-type obj config args props)
   "Specify how to parse PROPS as a specification of properties for OBJ.
 
@@ -347,6 +350,13 @@ PROJECT-TYPE is the type of the project (e.g., org, json, etc.).")
 (cl-defmethod gtde--parse-entry-properties (_pt (_ (subclass gtde--base)) _config args _props)
   "When we hit the base class, we simply return ARGS as a base case."
   args)
+
+(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--has-parent-projects)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--get-prop pt "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
+
+(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--project)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gtde--get-prop pt "GTDE_STATUS" props)))
+                                                         (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
 
 (cl-defgeneric gtde--parse-entry-properties-no-config (project-type obj args props)
   "Specify how to parse PROPS as a specification of properties for OBJ.

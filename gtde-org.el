@@ -52,6 +52,10 @@ This ensures that the edit is performed in Org mode."
 ;;;;;;;;;;;;;
 
 
+(cl-defmethod gtde--get-prop ((_pt (eql org)) key props)
+  "Lookup KEY in PROPS, which is an alist for Org projects."
+  (gtde--alist-get key props))
+
 (cl-defmethod gtde--parse-entry-properties ((pt (eql org)) (obj (subclass gtde--item)) config args props)
   (cl-call-next-method pt obj config (-concat args (list
                                                     :id (gtde--alist-get "ID" props)
@@ -68,13 +72,6 @@ This ensures that the edit is performed in Org mode."
                  (gtde--some (--map (gtde--parse-from-raw pt #'gtde--context config it) context-tags)))
              (gtde--none))))
       (cl-call-next-method pt obj config (-concat args (list :context contexts)) props))))
-
-(cl-defmethod gtde--parse-entry-properties ((pt (eql org)) (obj (subclass gtde--has-parent-projects)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
-
-(cl-defmethod gtde--parse-entry-properties ((pt (eql org)) (obj (subclass gtde--project)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gtde--alist-get "GTDE_STATUS" props)))
-                                                         (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
 
 (cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql org)) (obj (subclass gtde--config)) args props)
   (let* ((status-raw (gtde--alist-get "GTDE_PROJECT_STATUSES" props))
