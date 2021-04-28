@@ -99,16 +99,16 @@ TEXT is inserted into the new file."
 
         ;; testing config
         (should (equal 'gtde--config (eieio-object-class config)))
-        (should (equal (list (gtde--project-status :display "ACTIVE")
-                             (gtde--project-status :display "COMPLETE")
-                             (gtde--project-status :display "CANCELLED"))
-                       (oref config statuses)))
+        (should (equal (list (gtde--project-status :display "ACTIVE" :is-active t)
+                             (gtde--project-status :display "COMPLETE" :is-active nil)
+                             (gtde--project-status :display "CANCELLED" :is-active nil))
+                       (oref config project-statuses)))
 
         ;; testing project
         (should (equal 'gtde--project (eieio-object-class project)))
         (should (equal "02-project" (oref project id)))
         (should (equal "Test project" (oref project title)))
-        (should (equal (gtde--project-status :display "COMPLETE") (oref project status)))
+        (should (equal (gtde--project-status :display "COMPLETE" :is-active nil) (oref project status)))
 
         ;; testing action-standalone
         (should (equal 'gtde--next-action (eieio-object-class action-standalone)))
@@ -134,8 +134,8 @@ TEXT is inserted into the new file."
 
 (ert-deftest gtde-oo-test:parse-from-raw ()
   "Tests for `gtde--parse-from-raw'."
-  (let ((config1 (gtde--config :statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@\\(.*\\)"))
-        (config2 (gtde--config :statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@.*")))
+  (let ((config1 (gtde--config :project-statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@\\(.*\\)"))
+        (config2 (gtde--config :project-statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@.*")))
     (should (equal (gtde--context :name "test") (gtde--parse-from-raw 'org #'gtde--context config1 "@test")))
     (should (equal (gtde--context :name "@test") (gtde--parse-from-raw 'org #'gtde--context config2 "@test")))))
 
@@ -143,7 +143,7 @@ TEXT is inserted into the new file."
   "Tests for `gtde--write-item-to-file'."
   ;; all fields of projects and actions can be written
   (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action"))
-        (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE"))))
+        (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE" :is-active nil))))
     (let ((case-text "
 * Test config
 :PROPERTIES:

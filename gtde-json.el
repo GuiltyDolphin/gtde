@@ -57,9 +57,12 @@
 
 (cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql json)) (obj (subclass gtde--config)) args props)
   (let* ((status-raw (gethash "GTDE_PROJECT_STATUSES" props))
-         (statuses (mapcar (-partial #'gtde--project-status :display) (split-string status-raw "[ |]" t)))
+         (lr-status-strings (split-string status-raw "|" t))
+         (active-statuses (mapcar (-partial #'gtde--project-status :is-active t :display) (split-string (nth 0 lr-status-strings) " " t)))
+         (inactive-statuses (mapcar (-partial #'gtde--project-status :is-active nil :display) (split-string (nth 1 lr-status-strings) " " t)))
+         (statuses (-concat active-statuses inactive-statuses))
          (context-tag-re (gethash "GTDE_CONTEXT_TAG_REGEX" props)))
-    (cl-call-next-method pt obj (-concat args (list :statuses statuses :context-tag-regex context-tag-re))
+    (cl-call-next-method pt obj (-concat args (list :project-statuses statuses :context-tag-regex context-tag-re))
                        props)))
 
 (defun gtde-json--read-file (file)

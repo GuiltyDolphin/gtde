@@ -135,14 +135,40 @@ Return NIL if the slot is unbound."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defclass gtde--project-status (gtde--base)
+(defclass gtde--status (gtde--base)
   ((display :initarg :display
             :type stringp
-            :documentation "Textual display of the status."))
+            :documentation "Textual display of the status.")
+   (is-active :initarg :is-active
+              :type booleanp
+              :documentation "Whether the status is used for active or inactive items."))
+  :documentation "Status of an item.")
+
+(defclass gtde--has-status (gtde--base)
+  ((status :initarg :status
+           :type gtde--status
+           :documentation "Status of the item."))
+  :abstract t
+  :documentation "Abstract class for items which have a status.")
+
+(cl-defgeneric gtde--get-status (obj)
+  "Get the status of OBJ.")
+
+(cl-defmethod gtde--get-status ((obj gtde--has-status))
+  (oref obj status))
+
+(cl-defgeneric gtde--is-active (obj)
+  "Non-NIL if OBJ is active.")
+
+(cl-defmethod gtde--is-active ((obj gtde--has-status))
+  (oref (gtde--get-status obj) is-active))
+
+(defclass gtde--project-status (gtde--status)
+  ()
   :documentation "Status of a project.")
 
 (defclass gtde--config (gtde--base)
-  ((statuses :initarg :statuses
+  ((project-statuses :initarg :project-statuses
              ;; NOTE: there are nicer error messages if you use `gtde-defist' with `gtde--validate-option-type'. (2021-04-23)
              :type (satisfies (lambda (x) (apply (gtde--type--list-of #'gtde--project-status-p) (list x))))
              :documentation "List of possible project statuses.")
@@ -177,13 +203,10 @@ Return NIL if the slot is unbound."
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defclass gtde--project (gtde--item gtde--from-org)
+(defclass gtde--project (gtde--item gtde--from-org gtde--has-status)
   ((actions :initarg :actions
             :initform nil
             :documentation "Next actions associated with the project.")
-   (status :initarg :status
-           :documentation "Status of the project."
-           :type gtde--project-status)
    (type-name :initform "project")
    (subprojects :documentation "References to subprojects."))
   :documentation "A project.")
@@ -284,10 +307,16 @@ the body.")
 (cl-defmethod gtde--init ((obj gtde--base))
   "No-op.")
 
+(cl-defmethod gtde--init :before ((obj gtde--status))
+  ":display must be a bound string. :is-active must be a bound boolean."
+  (gtde--validate-required-options obj '(:display :is-active))
+  (gtde--validate-option-type obj :display #'stringp)
+  (gtde--validate-option-type obj :is-active #'booleanp))
+
 (cl-defmethod gtde--init :before ((obj gtde--config))
-  ":statuses must be a list of statuses, and must be specified."
-  (gtde--validate-required-options obj '(:statuses))
-  (gtde--validate-option-type obj :statuses (gtde--type--list-of #'gtde--project-status-p)))
+  ":project-statuses must be a list of project statuses, and must be specified."
+  (gtde--validate-required-options obj '(:project-statuses))
+  (gtde--validate-option-type obj :project-statuses (gtde--type--list-of #'gtde--project-status-p)))
 
 (cl-defmethod gtde--init ((obj gtde--db))
   "We require the `:global-config' and `:table' arguments to be bound."
@@ -326,8 +355,8 @@ the body.")
 CONFIG is the available configuration context.
 PROJECT-TYPE is the project type for parsing (e.g., org, JSON, etc.).")
 
-(cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--project-status)) _config text)
-  (gtde-definst #'gtde--project-status :display text))
+(cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--project-status)) config text)
+  (--first (equal text (oref it display)) (oref config project-statuses)))
 
 (cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--context)) config text)
   (let* ((context-tag-re (oref config context-tag-regex))
@@ -374,7 +403,7 @@ PROJECT-TYPE is the current project type.")
 (cl-defgeneric gtde--render (project-type obj)
   "Render OBJ to text based on PROJECT-TYPE.")
 
-(cl-defmethod gtde--render (_pt (obj gtde--project-status))
+(cl-defmethod gtde--render (_pt (obj gtde--status))
   (oref obj display))
 
 (cl-defgeneric gtde--write-item-to-file (project-type file item)
