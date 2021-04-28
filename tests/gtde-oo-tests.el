@@ -168,26 +168,20 @@ TEXT is inserted into the new file."
     (let ((case-text "
 {
   \"config\": {
-    \"properties\": {
       \"GTDE_IS_CONFIG\": true,
       \"GTDE_PROJECT_STATUSES\": \"ACTIVE | INACTIVE\",
       \"GTDE_CONTEXT_TAG_REGEX\": \"@\\\\(.*\\\\)\"
-    }
   },
   \"01-test-action\": {
-    \"properties\": {
       \"title\": \"Test action\",
       \"id\": \"01-test-action\",
       \"GTDE_TYPE\": \"next_action\"
-    }
   },
   \"01-test-project\": {
-    \"properties\": {
       \"title\": \"Test project\",
       \"id\": \"01-test-project\",
       \"GTDE_TYPE\": \"project\",
       \"STATUS\": \"ACTIVE\"
-    }
   }
 }"))
       (gtde-test--with-temp-json-file "test-file" case-text fvar
