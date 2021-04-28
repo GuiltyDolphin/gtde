@@ -202,6 +202,14 @@ TEXT is inserted into the new file."
     (delete-file fvar)
     (should-error (gtde--build-db-from-files 'json (list fvar)) :type 'gtde--no-such-file)))
 
+(ert-deftest gtde-oo-test:unknown-project-status ()
+  "An unknown project status is specified."
+  (should-error (gtde--build-db-from-files 'json (list (gtde-test--find-test-case-file "04-unknown-status.json"))) :type 'gtde--unknown-project-status))
+
+(ert-deftest gtde-oo-test:unknown-project-status-org ()
+  "An unknown project status is specified."
+  (should-error (gtde--build-db-from-files 'org (list (gtde-test--find-test-case-file "04-unknown-status.org"))) :type 'gtde--unknown-project-status))
+
 
 (provide 'gtde-oo-tests)
 ;;; gtde-oo-tests.el ends here

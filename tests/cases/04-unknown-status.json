@@ -1,0 +1,14 @@
+{
+    "01-config": {
+        "id": "01-config",
+        "GTDE_IS_CONFIG": true,
+        "GTDE_PROJECT_STATUSES": "ACTIVE | COMPLETE CANCELLED",
+        "GTDE_CONTEXT_TAG_REGEX": "@\\(.*\\)"
+    },
+    "02-project": {
+        "id": "02-project",
+        "title": "Test project",
+        "GTDE_TYPE": "project",
+        "GTDE_STATUS": "NOTVALID"
+    }
+}

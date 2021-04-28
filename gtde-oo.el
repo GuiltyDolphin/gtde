@@ -174,6 +174,9 @@ Return NIL if the slot is unbound."
   ()
   :documentation "Status of a project.")
 
+(define-error 'gtde--unknown-project-status
+  "Unknown project status")
+
 (defclass gtde--config (gtde--base)
   ((project-statuses :initarg :project-statuses
              ;; NOTE: there are nicer error messages if you use `gtde-defist' with `gtde--validate-option-type'. (2021-04-23)
@@ -367,7 +370,7 @@ CONFIG is the available configuration context.
 PROJECT-TYPE is the project type for parsing (e.g., org, JSON, etc.).")
 
 (cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--project-status)) config text)
-  (--first (equal text (oref it display)) (oref config project-statuses)))
+  (or (--first (equal text (oref it display)) (oref config project-statuses)) (signal 'gtde--unknown-project-status text)))
 
 (cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--context)) config text)
   (let* ((context-tag-re (oref config context-tag-regex))
