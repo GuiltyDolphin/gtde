@@ -69,6 +69,13 @@ This ensures that the edit is performed in Org mode."
              (gtde--none))))
       (cl-call-next-method pt obj config (-concat args (list :context contexts)) props))))
 
+(cl-defmethod gtde--parse-entry-properties ((pt (eql org)) (obj (subclass gtde--has-parent-projects)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
+
+(cl-defmethod gtde--parse-entry-properties ((pt (eql org)) (obj (subclass gtde--project)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gtde--alist-get "GTDE_STATUS" props)))
+                                                         (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
+
 (cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql org)) (obj (subclass gtde--config)) args props)
   (let* ((status-raw (gtde--alist-get "GTDE_PROJECT_STATUSES" props))
          (statuses (mapcar (-partial #'gtde--project-status :display) (split-string status-raw "[ |]" t)))
@@ -109,12 +116,6 @@ This ensures that the edit is performed in Org mode."
           (save-buffer))
       (error "Could not find entry %s" (oref item id)))))
 
-(cl-defgeneric gtde--render-to-org (obj)
-  "Render OBJ as Org text.")
-
-(cl-defmethod gtde--render-to-org ((obj gtde--project-status))
-  (oref obj display))
-
 (cl-defgeneric gtde--write-to-org (obj)
   "Write OBJ to the current Org entry.")
 
@@ -122,7 +123,7 @@ This ensures that the edit is performed in Org mode."
   (org-edit-headline (oref obj title)))
 
 (cl-defmethod gtde--write-to-org ((obj gtde--project))
-  (org-set-property "GTDE_STATUS" (gtde--render-to-org (oref obj status)))
+  (org-set-property "GTDE_STATUS" (gtde--render 'org (oref obj status)))
   (cl-call-next-method obj))
 
 

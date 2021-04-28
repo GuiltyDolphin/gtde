@@ -3,6 +3,7 @@
 
 
 (require 'dash)
+(require 'gtde-json)
 (require 'gtde-org)
 
 
@@ -54,9 +55,15 @@ TEXT is inserted into the new file."
   (declare (indent 3) (debug t))
   `(gtde-test--with-temp-file ,prefix ".org" ,text ,fvar ,@body))
 
-(defun gtde-test--find-item-by-id-in-file (id file)
-  "Find the item with given ID in FILE."
-  (let ((db (gtde--build-db-from-files 'org (list file))))
+(defmacro gtde-test--with-temp-json-file (prefix text fvar &rest body)
+  "Create a temporary file with prefix PREFIX and execute BODY like `progn', with FVAR bound to the name of the temporary file.
+
+TEXT is inserted into the new file."
+  (declare (indent 4) (debug t))
+  `(gtde-test--with-temp-file ,prefix ".json" ,text ,fvar ,@body))
+(defun gtde-test--find-item-by-id-in-file (project-type id file)
+  "Find the item with given ID in FILE with PROJECT-TYPE."
+  (let ((db (gtde--build-db-from-files project-type (list file))))
     (gtde--db-get-entry db id)))
 
 
@@ -132,30 +139,61 @@ TEXT is inserted into the new file."
 
 (ert-deftest gtde-oo-test:write-item-to-file ()
   "Tests for `gtde--write-item-to-file'."
-  (let ((case-text (concat "* Test config\n"
-                              ":PROPERTIES:\n"
-                              ":GTDE_IS_CONFIG: t\n"
-                              ":GTDE_PROJECT_STATUSES: ACTIVE | INACTIVE\n"
-                              ":GTDE_CONTEXT_TAG_REGEX: @\\(.*\\)\n"
-                              ":END:\n"
-                              "* Test action\n"
-                              ":PROPERTIES:\n"
-                              ":ID: 01-test-action\n"
-                              ":GTDE_TYPE: next_action\n"
-                              ":END:\n"
-                              "* Test project\n"
-                              ":PROPERTIES:\n"
-                              ":ID: 01-test-project\n"
-                              ":GTDE_TYPE: project\n"
-                              ":STATUS: ACTIVE\n"
-                              ":END:"))
-        (example-action (gtde--next-action :title "Modified action title" :id "01-test-action"))
+  ;; all fields of projects and actions can be written
+  (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action"))
         (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE"))))
-    (gtde-test--with-temp-org-file "test-file" case-text fvar
-      (gtde--write-item-to-file 'org fvar example-project)
-      (gtde--write-item-to-file 'org fvar example-action)
-      (should (equal example-project (gtde-test--find-item-by-id-in-file "01-test-project" fvar)))
-      (should (equal example-action (gtde-test--find-item-by-id-in-file "01-test-action" fvar))))))
+    (let ((case-text (concat "* Test config\n"
+                             ":PROPERTIES:\n"
+                             ":GTDE_IS_CONFIG: t\n"
+                             ":GTDE_PROJECT_STATUSES: ACTIVE | INACTIVE\n"
+                             ":GTDE_CONTEXT_TAG_REGEX: @\\(.*\\)\n"
+                             ":END:\n"
+                             "* Test action\n"
+                             ":PROPERTIES:\n"
+                             ":ID: 01-test-action\n"
+                             ":GTDE_TYPE: next_action\n"
+                             ":END:\n"
+                             "* Test project\n"
+                             ":PROPERTIES:\n"
+                             ":ID: 01-test-project\n"
+                             ":GTDE_TYPE: project\n"
+                             ":STATUS: ACTIVE\n"
+                             ":END:")))
+      (gtde-test--with-temp-org-file "test-file" case-text fvar
+        (gtde--write-item-to-file 'org fvar example-project)
+        (gtde--write-item-to-file 'org fvar example-action)
+        (should (equal example-project (gtde-test--find-item-by-id-in-file 'org "01-test-project" fvar)))
+        (should (equal example-action (gtde-test--find-item-by-id-in-file 'org "01-test-action" fvar)))))
+    (let ((case-text "
+{
+  \"config\": {
+    \"properties\": {
+      \"GTDE_IS_CONFIG\": true,
+      \"GTDE_PROJECT_STATUSES\": \"ACTIVE | INACTIVE\",
+      \"GTDE_CONTEXT_TAG_REGEX\": \"@\\\\(.*\\\\)\"
+    }
+  },
+  \"01-test-action\": {
+    \"properties\": {
+      \"title\": \"Test action\",
+      \"id\": \"01-test-action\",
+      \"GTDE_TYPE\": \"next_action\"
+    }
+  },
+  \"01-test-project\": {
+    \"properties\": {
+      \"title\": \"Test project\",
+      \"id\": \"01-test-project\",
+      \"GTDE_TYPE\": \"project\",
+      \"STATUS\": \"ACTIVE\"
+    }
+  }
+}"))
+      (gtde-test--with-temp-json-file "test-file" case-text fvar
+                                      (gtde--write-item-to-file 'json fvar example-project)
+        (gtde--write-item-to-file 'json fvar example-action)
+        (should (equal example-project (gtde-test--find-item-by-id-in-file 'json "01-test-project" fvar)))
+        (should (equal example-action (gtde-test--find-item-by-id-in-file 'json "01-test-action" fvar)))))))
 
 
 (provide 'gtde-oo-tests)

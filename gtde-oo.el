@@ -348,13 +348,6 @@ PROJECT-TYPE is the type of the project (e.g., org, json, etc.).")
   "When we hit the base class, we simply return ARGS as a base case."
   args)
 
-(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--has-parent-projects)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--alist-get "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
-
-(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--project)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gtde--alist-get "GTDE_STATUS" props)))
-                                                         (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
-
 (cl-defgeneric gtde--parse-entry-properties-no-config (project-type obj args props)
   "Specify how to parse PROPS as a specification of properties for OBJ.
 
@@ -370,6 +363,12 @@ PROJECT-TYPE is the current project type.")
 ;; Rendering ;;
 ;;;;;;;;;;;;;;;
 
+
+(cl-defgeneric gtde--render (project-type obj)
+  "Render OBJ to text based on PROJECT-TYPE.")
+
+(cl-defmethod gtde--render (_pt (obj gtde--project-status))
+  (oref obj display))
 
 (cl-defgeneric gtde--write-item-to-file (project-type file item)
   "Write the given ITEM to the given FILE with PROJECT-TYPE.")
