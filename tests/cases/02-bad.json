@@ -1,0 +1,12 @@
+{
+    "config": {
+        "GTDE_IS_CONFIG": true,
+        "GTDE_PROJECT_STATUSES": "ACTIVE | COMPLETE CANCELLED",
+        "GTDE_CONTEXT_TAG_REGEX": "@\\(.*\\)"
+    },
+    "02-unsupported": {
+        "title": "Test project",
+        "id": "02-unsupported",
+        "GTDE_TYPE": "something_unsupported"
+    }
+}
