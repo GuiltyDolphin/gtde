@@ -73,6 +73,10 @@ This ensures that the edit is performed in Org mode."
              (gtde--none))))
       (cl-call-next-method pt obj config (-concat args (list :context contexts)) props))))
 
+(cl-defmethod gtde--parse-entry-properties ((pt (eql org)) (obj (subclass gtde--has-parent-projects)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--get-prop pt "GTDE_PROJECTS" props)))
+                                                                     (and projects-string (read projects-string))))) props))
+
 (cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql org)) (obj (subclass gtde--config)) args props)
   (let* ((status-raw (gtde--alist-get "GTDE_PROJECT_STATUSES" props))
          (statuses (mapcar (-partial #'gtde--project-status :display) (split-string status-raw "[ |]" t)))

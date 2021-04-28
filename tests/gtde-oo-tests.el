@@ -84,47 +84,49 @@ TEXT is inserted into the new file."
 
 (ert-deftest gtde-oo-test:gtde--build-db-from-files ()
   "Tests for `gtde--build-db-from-files'."
-  (let ((db (gtde--build-db-from-files 'org (list (gtde-test--find-test-case-file "01-simple.org")))))
+  (dolist (file (list "01-simple.org" "01-simple.json"))
+    (let* ((pt (if (equal (file-name-extension file) "json") 'json 'org))
+           (db (gtde--build-db-from-files pt (list (gtde-test--find-test-case-file file)))))
 
-    ;; correct IDs should be parsed into items
-    (should (equal (-sort #'string-lessp (hash-table-keys (oref db table)))
-                   '("02-project" "03-action-standalone" "04-action-with-project" "05-waiting-for-with-project")))
-    (let ((config (oref db global-config))
-          (project (gtde--db-get-entry db "02-project"))
-          (action-standalone (gtde--db-get-entry db "03-action-standalone"))
-          (action-with-project (gtde--db-get-entry db "04-action-with-project"))
-          (waiting-for-with-project (gtde--db-get-entry db "05-waiting-for-with-project")))
+      ;; correct IDs should be parsed into items
+      (should (equal (-sort #'string-lessp (hash-table-keys (oref db table)))
+                     '("02-project" "03-action-standalone" "04-action-with-project" "05-waiting-for-with-project")))
+      (let ((config (oref db global-config))
+            (project (gtde--db-get-entry db "02-project"))
+            (action-standalone (gtde--db-get-entry db "03-action-standalone"))
+            (action-with-project (gtde--db-get-entry db "04-action-with-project"))
+            (waiting-for-with-project (gtde--db-get-entry db "05-waiting-for-with-project")))
 
-      ;; testing config
-      (should (equal 'gtde--config (eieio-object-class config)))
-      (should (equal (list (gtde--project-status :display "ACTIVE")
-                           (gtde--project-status :display "COMPLETE")
-                           (gtde--project-status :display "CANCELLED"))
-                     (oref config statuses)))
+        ;; testing config
+        (should (equal 'gtde--config (eieio-object-class config)))
+        (should (equal (list (gtde--project-status :display "ACTIVE")
+                             (gtde--project-status :display "COMPLETE")
+                             (gtde--project-status :display "CANCELLED"))
+                       (oref config statuses)))
 
-      ;; testing project
-      (should (equal 'gtde--project (eieio-object-class project)))
-      (should (equal "02-project" (oref project id)))
-      (should (equal "Test project" (oref project title)))
-      (should (equal (gtde--project-status :display "COMPLETE") (oref project status)))
+        ;; testing project
+        (should (equal 'gtde--project (eieio-object-class project)))
+        (should (equal "02-project" (oref project id)))
+        (should (equal "Test project" (oref project title)))
+        (should (equal (gtde--project-status :display "COMPLETE") (oref project status)))
 
-      ;; testing action-standalone
-      (should (equal 'gtde--next-action (eieio-object-class action-standalone)))
-      (should (equal "03-action-standalone" (oref action-standalone id)))
-      (should (equal "A test standalone action" (oref action-standalone title)))
+        ;; testing action-standalone
+        (should (equal 'gtde--next-action (eieio-object-class action-standalone)))
+        (should (equal "03-action-standalone" (oref action-standalone id)))
+        (should (equal "A test standalone action" (oref action-standalone title)))
 
-      ;; testing action-with-project
-      (should (equal 'gtde--next-action (eieio-object-class action-with-project)))
-      (should (equal "04-action-with-project" (oref action-with-project id)))
-      (should (equal '("02-project") (oref action-with-project superior-projects)))
-      (should (equal "Action of \"a test project\"" (oref action-with-project title)))
-      (should (equal (gtde--some (list (gtde--context :name "test_context"))) (oref action-with-project context)))
+        ;; testing action-with-project
+        (should (equal 'gtde--next-action (eieio-object-class action-with-project)))
+        (should (equal "04-action-with-project" (oref action-with-project id)))
+        (should (equal '("02-project") (oref action-with-project superior-projects)))
+        (should (equal "Action of \"a test project\"" (oref action-with-project title)))
+        (should (equal (gtde--some (list (gtde--context :name "test_context"))) (oref action-with-project context)))
 
-      ;; testing waiting-for-with-project
-      (should (equal 'gtde--waiting-for (eieio-object-class waiting-for-with-project)))
-      (should (equal "05-waiting-for-with-project" (oref waiting-for-with-project id)))
-      (should (equal '("02-project") (oref waiting-for-with-project superior-projects)))
-      (should (equal "Waiting for of \"a test project\"" (oref waiting-for-with-project title)))))
+        ;; testing waiting-for-with-project
+        (should (equal 'gtde--waiting-for (eieio-object-class waiting-for-with-project)))
+        (should (equal "05-waiting-for-with-project" (oref waiting-for-with-project id)))
+        (should (equal '("02-project") (oref waiting-for-with-project superior-projects)))
+        (should (equal "Waiting for of \"a test project\"" (oref waiting-for-with-project title))))))
 
   ;; unsupported GTD type
   (should (equal "something_unsupported"

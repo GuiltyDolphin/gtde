@@ -1,0 +1,33 @@
+{
+    "01-config": {
+        "id": "01-config",
+        "GTDE_IS_CONFIG": true,
+        "GTDE_PROJECT_STATUSES": "ACTIVE | COMPLETE CANCELLED",
+        "GTDE_CONTEXT_TAG_REGEX": "@\\(.*\\)"
+    },
+    "02-project": {
+        "id": "02-project",
+        "title": "Test project",
+        "GTDE_TYPE": "project",
+        "GTDE_ACTIONS": ["04-action-with-project", "05-waiting-for-with-project"],
+        "GTDE_STATUS": "COMPLETE"
+    },
+    "03-action-standalone": {
+        "title": "A test standalone action",
+        "id": "03-action-standalone",
+        "GTDE_TYPE": "next_action"
+    },
+    "04-action-with-project": {
+        "title": "Action of \"a test project\"",
+        "id": "04-action-with-project",
+        "GTDE_TYPE": "next_action",
+        "GTDE_PROJECTS": ["02-project"],
+        "GTDE_CONTEXTS": ["@test_context"]
+    },
+    "05-waiting-for-with-project": {
+        "title": "Waiting for of \"a test project\"",
+        "id": "05-waiting-for-with-project",
+        "GTDE_TYPE": "waiting_for",
+        "GTDE_PROJECTS": ["02-project"]
+    }
+}

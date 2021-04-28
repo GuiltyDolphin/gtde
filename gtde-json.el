@@ -47,15 +47,13 @@
                        props))
 
 (cl-defmethod gtde--parse-entry-properties ((pt (eql json)) (obj (subclass gtde--next-action)) config args props)
-  (let ((tags-string (gethash "TAGS" props)))
-    (let ((contexts
-           (if tags-string
-               (let* ((tags (gtde--tag-string-to-list tags-string))
-                      (context-re (oref config context-tag-regex))
-                      (context-tags (--filter (string-match-p context-re it) tags)))
-                 (gtde--some (--map (gtde--parse-from-raw pt #'gtde--context config it) context-tags)))
-             (gtde--none))))
-      (cl-call-next-method pt obj config (-concat args (list :context contexts)) props))))
+  (let* ((contexts-array (gethash "GTDE_CONTEXTS" props))
+         (contexts (if contexts-array (gtde--some (--map (gtde--parse-from-raw pt #'gtde--context config it) (seq-into contexts-array 'list))) (gtde--none))))
+    (cl-call-next-method pt obj config (-concat args (list :context contexts)) props)))
+(cl-defmethod gtde--parse-entry-properties ((pt (eql json)) (obj (subclass gtde--has-parent-projects)) config args props)
+  (cl-call-next-method pt obj config (-concat args (list :projects
+                                                         (let ((projects-array (gtde--get-prop pt "GTDE_PROJECTS" props)))
+                                                           (and projects-array (seq-into projects-array 'list))))) props))
 
 (cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql json)) (obj (subclass gtde--config)) args props)
   (let* ((status-raw (gethash "GTDE_PROJECT_STATUSES" props))

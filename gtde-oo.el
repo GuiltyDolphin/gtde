@@ -351,9 +351,6 @@ PROJECT-TYPE is the type of the project (e.g., org, json, etc.).")
   "When we hit the base class, we simply return ARGS as a base case."
   args)
 
-(cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--has-parent-projects)) config args props)
-  (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--get-prop pt "GTDE_PROJECTS" props))) (and projects-string (read projects-string))))) props))
-
 (cl-defmethod gtde--parse-entry-properties (pt (obj (subclass gtde--project)) config args props)
   (cl-call-next-method pt obj config (-concat args (list :status (let ((status-string (gtde--get-prop pt "GTDE_STATUS" props)))
                                                          (and status-string (gtde--parse-from-raw pt #'gtde--project-status config status-string))))) props))
