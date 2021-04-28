@@ -28,7 +28,6 @@ CLASSES is traversed left-to-right, including children."
   (declare (indent 1))
   `(should (string-match-p ,regex (cadr (should-error ,form)))))
 
-
 (defmacro gtde-test--with-temp-file (prefix suffix text fvar &rest body)
   "Create a temporary file and execute BODY like `progn', with FVAR bound to the file name.
 
@@ -61,6 +60,7 @@ TEXT is inserted into the new file."
 TEXT is inserted into the new file."
   (declare (indent 4) (debug t))
   `(gtde-test--with-temp-file ,prefix ".json" ,text ,fvar ,@body))
+
 (defun gtde-test--find-item-by-id-in-file (project-type id file)
   "Find the item with given ID in FILE with PROJECT-TYPE."
   (let ((db (gtde--build-db-from-files project-type (list file))))
