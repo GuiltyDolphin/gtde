@@ -192,6 +192,16 @@ TEXT is inserted into the new file."
         (should (equal example-project (gtde-test--find-item-by-id-in-file 'json "01-test-project" fvar)))
         (should (equal example-action (gtde-test--find-item-by-id-in-file 'json "01-test-action" fvar)))))))
 
+(ert-deftest gtde-oo-test:build-db-from-files:no-such-file ()
+  "Testing `gtde--build-db-from-files' when passed nonexistent files."
+  ;;(should-error (gtde--parse-from-raw nil #'gtde--status
+  (gtde-test--with-temp-org-file "test-file" "" fvar
+    (delete-file fvar)
+    (should-error (gtde--build-db-from-files 'org (list fvar)) :type 'gtde--no-such-file))
+  (gtde-test--with-temp-json-file "test-file" "" fvar
+    (delete-file fvar)
+    (should-error (gtde--build-db-from-files 'json (list fvar)) :type 'gtde--no-such-file)))
+
 
 (provide 'gtde-oo-tests)
 ;;; gtde-oo-tests.el ends here

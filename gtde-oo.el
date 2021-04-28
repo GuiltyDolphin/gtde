@@ -74,6 +74,13 @@ Return NIL if the slot is unbound."
   (save-match-data
     (split-string org-tag-string ":" t)))
 
+(define-error 'gtde--no-such-file
+  "No such file")
+
+(defun gtde--verify-files-exist (files)
+  "Verify that each file in FILES exists, and throw a `gtde--no--such-file' error if not."
+  (-when-let (fname (--first (not (file-exists-p it)) files)) (signal 'gtde--no-such-file fname)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;; Classes - Helpers ;;;;;
@@ -263,6 +270,10 @@ Return NIL if the slot is unbound."
 
 (cl-defgeneric gtde--build-db-from-files (project-type files)
   "Build database for the given PROJECT-TYPE from FILES.")
+
+(cl-defmethod gtde--build-db-from-files :before (pt files)
+  "Verify that each file in FILES exists first, for any PT."
+  (gtde--verify-files-exist files))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
