@@ -114,7 +114,7 @@ BODY is the test body."
       (should (equal (list (gtde--status :display "ACTIVE" :is-active t)
                            (gtde--status :display "COMPLETE" :is-active nil)
                            (gtde--status :display "CANCELLED" :is-active nil))
-                     (gtde--get-statuses-for-type config "project")))
+                     (gtde--get-statuses-for-type config gtde--project)))
 
       ;; testing project
       (should (equal 'gtde--project (eieio-object-class project)))
@@ -153,8 +153,8 @@ BODY is the test body."
 
 (ert-deftest gtde-oo-test:parse-from-raw ()
   "Tests for `gtde--parse-from-raw'."
-  (let ((config1 (gtde--config :statuses `(("project" . ,(list (gtde--status :display "ACTIVE")))) :context-tag-regex "@\\(.*\\)"))
-        (config2 (gtde--config :statuses `(("project" . ,(list (gtde--status :display "ACTIVE")))) :context-tag-regex "@.*")))
+  (let ((config1 (gtde--config :statuses `((gtde--project . ,(list (gtde--status :display "ACTIVE")))) :context-tag-regex "@\\(.*\\)"))
+        (config2 (gtde--config :statuses `((gtde--project . ,(list (gtde--status :display "ACTIVE")))) :context-tag-regex "@.*")))
     (should (equal (gtde--context :name "test") (gtde--parse-from-raw 'org #'gtde--context config1 "@test")))
     (should (equal (gtde--context :name "@test") (gtde--parse-from-raw 'org #'gtde--context config2 "@test")))))
 
@@ -225,14 +225,14 @@ BODY is the test body."
 
 (gtde-test--test-each-project-type unknown-project-status-2 '(org json) pt
   "An unknown project status is specified."
-  (let* ((config (gtde--config :statuses `(("project" . ,(list (gtde--status :display "DONE" :is-active t))))))
+  (let* ((config (gtde--config :statuses `((gtde--project . ,(list (gtde--status :display "DONE" :is-active t))))))
          (res (should-error (gtde--parse-from-raw-for pt 'gtde--next-action 'gtde--status config "TODO") :type 'gtde--unknown-status)))
     (should (equal (cadr res) 'gtde--next-action))
     (should (equal (cddr res) "TODO"))))
 
 (gtde-test--test-each-project-type unknown-action-status '(org json) pt
   "An unknown action status is specified."
-  (let* ((config (gtde--config :statuses `(("next_action" . ,(list (gtde--status :display "ACTION" :is-active t))))))
+  (let* ((config (gtde--config :statuses `((gtde--next-action . ,(list (gtde--status :display "ACTION" :is-active t))))))
          (res (should-error (gtde--parse-from-raw-for pt 'gtde--next-action 'gtde--status config "TEST") :type 'gtde--unknown-status)))
     (should (equal (cadr res) 'gtde--next-action))
     (should (equal (cddr res) "TEST"))))
@@ -241,7 +241,7 @@ BODY is the test body."
   "An unknown waiting for status is specified.
 
 The NEXT status is specified for next actions, but not waiting fors, so should not be accepted as a waiting for status."
-  (let* ((config (gtde--config :statuses `(("next_action" . ,(list (gtde--status :display "NEXT" :is-active t))) ("waiting_for" . ,(list (gtde--status :display "WAITING" :is-active t))))))
+  (let* ((config (gtde--config :statuses `((gtde--next-action . ,(list (gtde--status :display "NEXT" :is-active t))) (gtde--waiting-for . ,(list (gtde--status :display "WAITING" :is-active t))))))
          (res (should-error (gtde--parse-from-raw-for pt 'gtde--waiting-for 'gtde--status config "NEXT") :type 'gtde--unknown-status)))
     (should (equal (cadr res) 'gtde--waiting-for))
     (should (equal (cddr res) "NEXT"))))

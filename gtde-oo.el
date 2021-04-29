@@ -341,7 +341,7 @@ the body.")
 (cl-defmethod gtde--init :before ((obj gtde--config))
   ":statuses must be a (name . (list status)) alist, and must be specified."
   (gtde--validate-required-options obj '(:statuses))
-  (gtde--validate-option-type obj :statuses (gtde--type--alist-of #'stringp (gtde--type--list-of (lambda (x) (cl-typep x #'gtde--status))))))
+  (gtde--validate-option-type obj :statuses (gtde--type--alist-of (lambda (c) (and (class-p c) (child-of-class-p c #'gtde--item))) (gtde--type--list-of (lambda (x) (cl-typep x #'gtde--status))))))
 
 (cl-defmethod gtde--init ((obj gtde--db))
   "We require the `:global-config' and `:table' arguments to be bound."
@@ -383,16 +383,10 @@ OBJ is the object (or class) that is requesting the parse, so parsing can be spe
 
 (defun gtde--get-statuses-for-type (config type)
   "Get available item statuses for TYPE in CONFIG."
-  (alist-get type (oref config statuses) nil nil #'equal))
+  (alist-get type (oref config statuses)))
 
-(cl-defmethod gtde--parse-from-raw-for (pt (_obj (subclass gtde--project)) (_class (subclass gtde--status)) config text)
-  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config "project")) (signal 'gtde--unknown-status `(gtde--project . ,text))))
-
-(cl-defmethod gtde--parse-from-raw-for (pt (_obj (subclass gtde--next-action)) (_class (subclass gtde--status)) config text)
-  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config "next_action")) (signal 'gtde--unknown-status `(gtde--next-action . ,text))))
-
-(cl-defmethod gtde--parse-from-raw-for (pt (_obj (subclass gtde--waiting-for)) (_class (subclass gtde--status)) config text)
-  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config "waiting_for")) (signal 'gtde--unknown-status `(gtde--waiting-for . ,text))))
+(cl-defmethod gtde--parse-from-raw-for (pt (obj-class (subclass gtde--has-status)) (_class (subclass gtde--status)) config text)
+  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config obj-class)) (signal 'gtde--unknown-status (cons obj-class text))))
 
 (cl-defgeneric gtde--parse-from-raw (project-type class config text)
   "Parse an instance of CLASS from TEXT.
@@ -447,9 +441,9 @@ PROJECT-TYPE is the current project type.")
          (waiting-for-statuses (gtde--parse-statuses waiting-for-statuses-raw))
          (context-tag-re (gtde--get-prop pt "GTDE_CONTEXT_TAG_REGEX" props)))
     (cl-call-next-method pt obj (-concat args (list
-                                               :statuses `(("project" . ,project-statuses)
-                                                           ("next_action" . ,action-statuses)
-                                                           ("waiting_for" . ,waiting-for-statuses))
+                                               :statuses `((gtde--project . ,project-statuses)
+                                                           (gtde--next-action . ,action-statuses)
+                                                           (gtde--waiting-for . ,waiting-for-statuses))
                                                :context-tag-regex context-tag-re))
                        props)))
 
