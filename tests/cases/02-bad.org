@@ -10,4 +10,5 @@
 :PROPERTIES:
 :ID: 02-unsupported
 :GTDE_TYPE: something_unsupported
+:GTDE_STATUS: ACTIVE
 :END:

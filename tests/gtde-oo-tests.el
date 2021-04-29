@@ -120,24 +120,31 @@ BODY is the test body."
       (should (equal 'gtde--project (eieio-object-class project)))
       (should (equal "02-project" (oref project id)))
       (should (equal "Test project" (oref project title)))
-      (should (equal (gtde--project-status :display "COMPLETE" :is-active nil) (oref project status)))
+      (should (equal (gtde--project-status :display "COMPLETE" :is-active nil) (gtde--get-status project)))
+      (should-not (gtde--is-active project))
 
       ;; testing action-standalone
       (should (equal 'gtde--next-action (eieio-object-class action-standalone)))
       (should (equal "03-action-standalone" (oref action-standalone id)))
       (should (equal "A test standalone action" (oref action-standalone title)))
+      (should (equal (gtde--action-status :display "NEXT" :is-active t) (gtde--get-status action-standalone)))
+      (should (gtde--is-active action-standalone))
 
       ;; testing action-with-project
       (should (equal 'gtde--next-action (eieio-object-class action-with-project)))
       (should (equal "04-action-with-project" (oref action-with-project id)))
       (should (equal '("02-project") (oref action-with-project superior-projects)))
       (should (equal "Action of \"a test project\"" (oref action-with-project title)))
+      (should (equal (gtde--action-status :display "DONE" :is-active nil) (gtde--get-status action-with-project)))
       (should (equal (gtde--some (list (gtde--context :name "test_context"))) (oref action-with-project context)))
+      (should-not (gtde--is-active action-with-project))
 
       ;; testing waiting-for-with-project
       (should (equal 'gtde--waiting-for (eieio-object-class waiting-for-with-project)))
       (should (equal "05-waiting-for-with-project" (oref waiting-for-with-project id)))
       (should (equal '("02-project") (oref waiting-for-with-project superior-projects)))
+      (should (equal (gtde--waiting-for-status :display "WAITING" :is-active t) (gtde--get-status waiting-for-with-project)))
+      (should (gtde--is-active waiting-for-with-project))
       (should (equal "Waiting for of \"a test project\"" (oref waiting-for-with-project title)))))
 
   ;; unsupported GTD type
@@ -154,42 +161,46 @@ BODY is the test body."
 (gtde-test--test-each-project-type write-item-to-file '(org json) pt
   "Tests for `gtde--write-item-to-file'."
   ;; all fields of projects and actions can be written
-  (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action"))
+  (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action" :status (gtde--action-status :display "DONE" :is-active nil)))
         (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE" :is-active nil)))
         (case-text (if (eq pt 'org)
 "* Test config
 :PROPERTIES:
 :GTDE_IS_CONFIG: t
 :GTDE_PROJECT_STATUSES: ACTIVE | INACTIVE
+:GTDE_NEXT_ACTION_STATUSES: NEXT | DONE
 :GTDE_CONTEXT_TAG_REGEX: @\\(.*\\)
 :END:
 * Test action
 :PROPERTIES:
 :ID: 01-test-action
 :GTDE_TYPE: next_action
+:GTDE_STATUS: NEXT
 :END:
 * Test project
 :PROPERTIES:
 :ID: 01-test-project
 :GTDE_TYPE: project
-:STATUS: ACTIVE
+:GTDE_STATUS: ACTIVE
 :END:" (if (eq pt 'json)
 "{
   \"config\": {
       \"GTDE_IS_CONFIG\": true,
       \"GTDE_PROJECT_STATUSES\": \"ACTIVE | INACTIVE\",
+      \"GTDE_NEXT_ACTION_STATUSES\": \"NEXT | DONE\",
       \"GTDE_CONTEXT_TAG_REGEX\": \"@\\\\(.*\\\\)\"
   },
   \"01-test-action\": {
       \"title\": \"Test action\",
       \"id\": \"01-test-action\",
-      \"GTDE_TYPE\": \"next_action\"
+      \"GTDE_TYPE\": \"next_action\",
+      \"GTDE_STATUS\": \"NEXT\"
   },
   \"01-test-project\": {
       \"title\": \"Test project\",
       \"id\": \"01-test-project\",
       \"GTDE_TYPE\": \"project\",
-      \"STATUS\": \"ACTIVE\"
+      \"GTDE_STATUS\": \"ACTIVE\"
   }
 }"))))
       (gtde-test--with-temp-file-for-project pt "test-file" case-text fvar

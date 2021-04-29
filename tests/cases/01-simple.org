@@ -3,6 +3,8 @@
 :ID: 01-config
 :GTDE_IS_CONFIG: t
 :GTDE_PROJECT_STATUSES: ACTIVE | COMPLETE CANCELLED
+:GTDE_NEXT_ACTION_STATUSES: NEXT | DONE
+:GTDE_WAITING_FOR_STATUSES: WAITING | DONE
 :GTDE_CONTEXT_TAG_REGEX: @\(.*\)
 :END:
 
@@ -18,6 +20,7 @@
 :PROPERTIES:
 :ID: 03-action-standalone
 :GTDE_TYPE: next_action
+:GTDE_STATUS: NEXT
 :END:
 
 #+BEGIN_SRC emacs-lisp
@@ -31,6 +34,7 @@
 :ID: 04-action-with-project
 :GTDE_TYPE: next_action
 :GTDE_PROJECTS: ("02-project")
+:GTDE_STATUS: DONE
 :END:
 
 * Waiting for of "a test project"
@@ -38,4 +42,5 @@
 :ID: 05-waiting-for-with-project
 :GTDE_TYPE: waiting_for
 :GTDE_PROJECTS: ("02-project")
+:GTDE_STATUS: WAITING
 :END:

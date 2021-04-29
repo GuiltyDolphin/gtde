@@ -55,16 +55,6 @@
                                                          (let ((projects-array (gtde--get-prop pt "GTDE_PROJECTS" props)))
                                                            (and projects-array (seq-into projects-array 'list))))) props))
 
-(cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql json)) (obj (subclass gtde--config)) args props)
-  (let* ((status-raw (gethash "GTDE_PROJECT_STATUSES" props))
-         (lr-status-strings (split-string status-raw "|" t))
-         (active-statuses (mapcar (-partial #'gtde--project-status :is-active t :display) (split-string (nth 0 lr-status-strings) " " t)))
-         (inactive-statuses (mapcar (-partial #'gtde--project-status :is-active nil :display) (split-string (nth 1 lr-status-strings) " " t)))
-         (statuses (-concat active-statuses inactive-statuses))
-         (context-tag-re (gethash "GTDE_CONTEXT_TAG_REGEX" props)))
-    (cl-call-next-method pt obj (-concat args (list :project-statuses statuses :context-tag-regex context-tag-re))
-                       props)))
-
 (defun gtde-json--read-file (file)
   "Read the first JSON object contained in FILE and return it as a hash."
   (with-temp-buffer
@@ -108,11 +98,14 @@
 (cl-defgeneric gtde-json--write-to-object (obj json)
   "Write OBJ to the current JSON object.")
 
-(cl-defmethod gtde-json--write-to-object ((item gtde--item) json)
-  (puthash "title" (oref item title) json))
+(cl-defmethod gtde-json--write-to-object ((obj gtde--base) json))
 
-(cl-defmethod gtde-json--write-to-object ((obj gtde--project) json)
-  (puthash "GTDE_STATUS" (gtde--render 'json (oref obj status)) json)
+(cl-defmethod gtde-json--write-to-object ((item gtde--item) json)
+  (puthash "title" (oref item title) json)
+  (cl-call-next-method item json))
+
+(cl-defmethod gtde-json--write-to-object ((obj gtde--has-status) json)
+  (puthash "GTDE_STATUS" (gtde--render 'json (gtde--get-status obj)) json)
   (cl-call-next-method obj json))
 
 (cl-defmethod gtde--write-item-to-file ((pt (eql json)) file item)

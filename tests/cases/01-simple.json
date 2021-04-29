@@ -3,6 +3,8 @@
         "id": "01-config",
         "GTDE_IS_CONFIG": true,
         "GTDE_PROJECT_STATUSES": "ACTIVE | COMPLETE CANCELLED",
+        "GTDE_NEXT_ACTION_STATUSES": "NEXT | DONE",
+        "GTDE_WAITING_FOR_STATUSES": "WAITING | DONE",
         "GTDE_CONTEXT_TAG_REGEX": "@\\(.*\\)"
     },
     "02-project": {
@@ -15,19 +17,22 @@
     "03-action-standalone": {
         "title": "A test standalone action",
         "id": "03-action-standalone",
-        "GTDE_TYPE": "next_action"
+        "GTDE_TYPE": "next_action",
+        "GTDE_STATUS": "NEXT"
     },
     "04-action-with-project": {
         "title": "Action of \"a test project\"",
         "id": "04-action-with-project",
         "GTDE_TYPE": "next_action",
         "GTDE_PROJECTS": ["02-project"],
-        "GTDE_CONTEXTS": ["@test_context"]
+        "GTDE_CONTEXTS": ["@test_context"],
+        "GTDE_STATUS": "DONE"
     },
     "05-waiting-for-with-project": {
         "title": "Waiting for of \"a test project\"",
         "id": "05-waiting-for-with-project",
         "GTDE_TYPE": "waiting_for",
-        "GTDE_PROJECTS": ["02-project"]
+        "GTDE_PROJECTS": ["02-project"],
+        "GTDE_STATUS": "WAITING"
     }
 }

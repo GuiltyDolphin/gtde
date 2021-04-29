@@ -77,16 +77,6 @@ This ensures that the edit is performed in Org mode."
   (cl-call-next-method pt obj config (-concat args (list :projects (let ((projects-string (gtde--get-prop pt "GTDE_PROJECTS" props)))
                                                                      (and projects-string (read projects-string))))) props))
 
-(cl-defmethod gtde--parse-entry-properties-no-config ((pt (eql org)) (obj (subclass gtde--config)) args props)
-  (let* ((status-raw (gtde--alist-get "GTDE_PROJECT_STATUSES" props))
-         (lr-status-strings (split-string status-raw "|" t))
-         (active-statuses (mapcar (-partial #'gtde--project-status :is-active t :display) (split-string (nth 0 lr-status-strings) " " t)))
-         (inactive-statuses (mapcar (-partial #'gtde--project-status :is-active nil :display) (split-string (nth 1 lr-status-strings) " " t)))
-         (statuses (-concat active-statuses inactive-statuses))
-         (context-tag-re (gtde--alist-get "GTDE_CONTEXT_TAG_REGEX" props)))
-  (cl-call-next-method pt obj (-concat args (list :project-statuses statuses :context-tag-regex context-tag-re))
-                       props)))
-
 (cl-defmethod gtde--build-db-from-files ((pt (eql org)) files)
   "Build a PT database from FILES."
   (let ((configs (org-map-entries (lambda () (apply #'gtde-definst #'gtde--config (gtde--parse-entry-properties-no-config pt #'gtde--config nil (org-entry-properties)))) "GTDE_IS_CONFIG=\"t\"" files)))
@@ -123,10 +113,13 @@ This ensures that the edit is performed in Org mode."
 (cl-defgeneric gtde--write-to-org (obj)
   "Write OBJ to the current Org entry.")
 
-(cl-defmethod gtde--write-to-org ((obj gtde--item))
-  (org-edit-headline (oref obj title)))
+(cl-defmethod gtde--write-to-org ((obj gtde--base)))
 
-(cl-defmethod gtde--write-to-org ((obj gtde--project))
+(cl-defmethod gtde--write-to-org ((obj gtde--item))
+  (org-edit-headline (oref obj title))
+  (cl-call-next-method obj))
+
+(cl-defmethod gtde--write-to-org ((obj gtde--has-status))
   (org-set-property "GTDE_STATUS" (gtde--render 'org (oref obj status)))
   (cl-call-next-method obj))
 
