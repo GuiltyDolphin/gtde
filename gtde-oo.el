@@ -91,11 +91,11 @@ Return NIL if the slot is unbound."
   "Verify that each file in FILES exists, and throw a `gtde--no--such-file' error if not."
   (-when-let (fname (--first (not (file-exists-p it)) files)) (signal 'gtde--no-such-file fname)))
 
-(defun gtde--parse-statuses (class status-raw)
-  "Parse STATUS-RAW into a series of statuses according to CLASS."
+(defun gtde--parse-statuses (status-raw)
+  "Parse STATUS-RAW into a series of statuses."
   (let* ((lr-status-strings (split-string (or status-raw "") "|" t))
-         (active-statuses (mapcar (-partial class :is-active t :display) (split-string (or (nth 0 lr-status-strings) "") " " t)))
-         (inactive-statuses (mapcar (-partial class :is-active nil :display) (split-string (or (nth 1 lr-status-strings) "") " " t))))
+         (active-statuses (mapcar (-partial #'gtde--status :is-active t :display) (split-string (or (nth 0 lr-status-strings) "") " " t)))
+         (inactive-statuses (mapcar (-partial #'gtde--status :is-active nil :display) (split-string (or (nth 1 lr-status-strings) "") " " t))))
     (-concat active-statuses inactive-statuses)))
 
 
@@ -186,18 +186,6 @@ Return NIL if the slot is unbound."
 
 (cl-defmethod gtde--is-active ((obj gtde--has-status))
   (oref (gtde--get-status obj) is-active))
-
-(defclass gtde--project-status (gtde--status)
-  ()
-  :documentation "Status of a project.")
-
-(defclass gtde--action-status (gtde--status)
-  ()
-  :documentation "Status of an action.")
-
-(defclass gtde--waiting-for-status (gtde--status)
-  ()
-  :documentation "Status of a waiting for.")
 
 (define-error 'gtde--unknown-status
   "Unknown status")
@@ -362,7 +350,7 @@ the body.")
 (cl-defmethod gtde--init :before ((obj gtde--project))
   ":status must be a status, and must be specified."
   (gtde--validate-required-options obj '(:status))
-  (gtde--validate-option-type obj :status #'gtde--project-status-p))
+  (gtde--validate-option-type obj :status #'gtde--status-p))
 
 (cl-defmethod gtde--init :before ((obj gtde--context))
   ":name must be specified, and must be a string."
@@ -452,11 +440,11 @@ PROJECT-TYPE is the current project type.")
 
 (cl-defmethod gtde--parse-entry-properties-no-config (pt (obj (subclass gtde--config)) args props)
   (let* ((project-statuses-raw (gtde--get-prop pt "GTDE_PROJECT_STATUSES" props))
-         (project-statuses (gtde--parse-statuses #'gtde--project-status project-statuses-raw))
+         (project-statuses (gtde--parse-statuses project-statuses-raw))
          (action-statuses-raw (gtde--get-prop pt "GTDE_NEXT_ACTION_STATUSES" props))
-         (action-statuses (gtde--parse-statuses #'gtde--action-status action-statuses-raw))
+         (action-statuses (gtde--parse-statuses action-statuses-raw))
          (waiting-for-statuses-raw (gtde--get-prop pt "GTDE_WAITING_FOR_STATUSES" props))
-         (waiting-for-statuses (gtde--parse-statuses #'gtde--waiting-for-status waiting-for-statuses-raw))
+         (waiting-for-statuses (gtde--parse-statuses waiting-for-statuses-raw))
          (context-tag-re (gtde--get-prop pt "GTDE_CONTEXT_TAG_REGEX" props)))
     (cl-call-next-method pt obj (-concat args (list
                                                :statuses `(("project" . ,project-statuses)

@@ -111,23 +111,23 @@ BODY is the test body."
 
       ;; testing config
       (should (equal 'gtde--config (eieio-object-class config)))
-      (should (equal (list (gtde--project-status :display "ACTIVE" :is-active t)
-                           (gtde--project-status :display "COMPLETE" :is-active nil)
-                           (gtde--project-status :display "CANCELLED" :is-active nil))
+      (should (equal (list (gtde--status :display "ACTIVE" :is-active t)
+                           (gtde--status :display "COMPLETE" :is-active nil)
+                           (gtde--status :display "CANCELLED" :is-active nil))
                      (gtde--get-statuses-for-type config "project")))
 
       ;; testing project
       (should (equal 'gtde--project (eieio-object-class project)))
       (should (equal "02-project" (oref project id)))
       (should (equal "Test project" (oref project title)))
-      (should (equal (gtde--project-status :display "COMPLETE" :is-active nil) (gtde--get-status project)))
+      (should (equal (gtde--status :display "COMPLETE" :is-active nil) (gtde--get-status project)))
       (should-not (gtde--is-active project))
 
       ;; testing action-standalone
       (should (equal 'gtde--next-action (eieio-object-class action-standalone)))
       (should (equal "03-action-standalone" (oref action-standalone id)))
       (should (equal "A test standalone action" (oref action-standalone title)))
-      (should (equal (gtde--action-status :display "NEXT" :is-active t) (gtde--get-status action-standalone)))
+      (should (equal (gtde--status :display "NEXT" :is-active t) (gtde--get-status action-standalone)))
       (should (gtde--is-active action-standalone))
 
       ;; testing action-with-project
@@ -135,7 +135,7 @@ BODY is the test body."
       (should (equal "04-action-with-project" (oref action-with-project id)))
       (should (equal '("02-project") (oref action-with-project superior-projects)))
       (should (equal "Action of \"a test project\"" (oref action-with-project title)))
-      (should (equal (gtde--action-status :display "DONE" :is-active nil) (gtde--get-status action-with-project)))
+      (should (equal (gtde--status :display "DONE" :is-active nil) (gtde--get-status action-with-project)))
       (should (equal (gtde--some (list (gtde--context :name "test_context"))) (oref action-with-project context)))
       (should-not (gtde--is-active action-with-project))
 
@@ -143,7 +143,7 @@ BODY is the test body."
       (should (equal 'gtde--waiting-for (eieio-object-class waiting-for-with-project)))
       (should (equal "05-waiting-for-with-project" (oref waiting-for-with-project id)))
       (should (equal '("02-project") (oref waiting-for-with-project superior-projects)))
-      (should (equal (gtde--waiting-for-status :display "WAITING" :is-active t) (gtde--get-status waiting-for-with-project)))
+      (should (equal (gtde--status :display "WAITING" :is-active t) (gtde--get-status waiting-for-with-project)))
       (should (gtde--is-active waiting-for-with-project))
       (should (equal "Waiting for of \"a test project\"" (oref waiting-for-with-project title)))))
 
@@ -153,16 +153,16 @@ BODY is the test body."
 
 (ert-deftest gtde-oo-test:parse-from-raw ()
   "Tests for `gtde--parse-from-raw'."
-  (let ((config1 (gtde--config :statuses `(("project" . ,(list (gtde--project-status :display "ACTIVE")))) :context-tag-regex "@\\(.*\\)"))
-        (config2 (gtde--config :statuses `(("project" . ,(list (gtde--project-status :display "ACTIVE")))) :context-tag-regex "@.*")))
+  (let ((config1 (gtde--config :statuses `(("project" . ,(list (gtde--status :display "ACTIVE")))) :context-tag-regex "@\\(.*\\)"))
+        (config2 (gtde--config :statuses `(("project" . ,(list (gtde--status :display "ACTIVE")))) :context-tag-regex "@.*")))
     (should (equal (gtde--context :name "test") (gtde--parse-from-raw 'org #'gtde--context config1 "@test")))
     (should (equal (gtde--context :name "@test") (gtde--parse-from-raw 'org #'gtde--context config2 "@test")))))
 
 (gtde-test--test-each-project-type write-item-to-file '(org json) pt
   "Tests for `gtde--write-item-to-file'."
   ;; all fields of projects and actions can be written
-  (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action" :status (gtde--action-status :display "DONE" :is-active nil)))
-        (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--project-status :display "INACTIVE" :is-active nil)))
+  (let ((example-action (gtde--next-action :title "Modified action title" :id "01-test-action" :status (gtde--status :display "DONE" :is-active nil)))
+        (example-project (gtde--project :title "Modified title" :id "01-test-project" :status (gtde--status :display "INACTIVE" :is-active nil)))
         (case-text (if (eq pt 'org)
 "* Test config
 :PROPERTIES:

@@ -211,7 +211,7 @@ TACTIC, if specified, determines how to combine existing and new values.")
 
 The rendered form should be suitable for re-parsing into an equal object (in the current state).")
 
-(cl-defmethod gtde-transient--render-to-input-text ((obj gtde--project-status))
+(cl-defmethod gtde-transient--render-to-input-text ((obj gtde--status))
   (oref obj display))
 
 (cl-defmethod gtde-transient--render-to-input-text ((obj t))
