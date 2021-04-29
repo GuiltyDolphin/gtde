@@ -31,8 +31,18 @@
 
 
 (defmacro gtde--type--list-of (p)
-  "A list, where each element satisfies P."
-  `(lambda (x) (and (listp x) (-all? ,p x))))
+  "A list, where each element satisfies P.
+
+The list is not allowed to be a true cons pair (see `-cons-pair-p')."
+  (let ((x (make-symbol "x")))
+    `(lambda (,x) (and (listp ,x) (not (-cons-pair-p ,x)) (-all? ,p ,x)))))
+
+(defmacro gtde--type--alist-of (kp vp)
+  "An alist, where each key satisfies KP, and each value satisfies VP."
+  (let ((kv (make-symbol "kv")))
+    `(gtde--type--list-of (lambda (,kv)
+                            (and (consp ,kv)
+                                 (funcall ,kp (car ,kv)) (funcall ,vp (cdr ,kv)))))))
 
 (defun gtde--alist-get (key alist)
   "Get the value at KEY in ALIST, comparing using `equal'."
@@ -189,26 +199,12 @@ Return NIL if the slot is unbound."
   ()
   :documentation "Status of a waiting for.")
 
-(define-error 'gtde--unknown-project-status
-  "Unknown project status")
-
-(define-error 'gtde--unknown-action-status
-  "Unknown action status")
-
-(define-error 'gtde--unknown-waiting-for-status
-  "Unknown waiting for status")
+(define-error 'gtde--unknown-status
+  "Unknown status")
 
 (defclass gtde--config (gtde--base)
-  ((project-statuses :initarg :project-statuses
-             ;; NOTE: there are nicer error messages if you use `gtde-defist' with `gtde--validate-option-type'. (2021-04-23)
-             :type (satisfies (lambda (x) (apply (gtde--type--list-of #'gtde--project-status-p) (list x))))
-             :documentation "List of possible project statuses.")
-   (action-statuses :initarg :action-statuses
-                    :type (satisfies (lambda (x) (apply (gtde--type--list-of #'gtde--action-status-p) (list x))))
-                    :documentation "List of possible action statuses.")
-   (waiting-for-statuses :initarg :waiting-for-statuses
-                         :type (satisfies (lambda (x) (apply (gtde--type--list-of #'gtde--waiting-for-status-p) (list x))))
-                         :documentation "List of possible waiting for statuses.")
+  ((statuses :initarg :statuses
+             :documentation "Alist of item types and their status configurations.")
    (context-tag-regex
     :initarg :context-tag-regex
     :type stringp
@@ -355,10 +351,9 @@ the body.")
   (gtde--validate-option-type obj :is-active #'booleanp))
 
 (cl-defmethod gtde--init :before ((obj gtde--config))
-  ":project-statuses must be a list of project statuses, and must be specified."
-  (gtde--validate-required-options obj '(:project-statuses :action-statuses))
-  (gtde--validate-option-type obj :project-statuses (gtde--type--list-of #'gtde--project-status-p))
-  (gtde--validate-option-type obj :action-statuses (gtde--type--list-of #'gtde--action-status-p)))
+  ":statuses must be a (name . (list status)) alist, and must be specified."
+  (gtde--validate-required-options obj '(:statuses))
+  (gtde--validate-option-type obj :statuses (gtde--type--alist-of #'stringp (gtde--type--list-of (lambda (x) (cl-typep x #'gtde--status))))))
 
 (cl-defmethod gtde--init ((obj gtde--db))
   "We require the `:global-config' and `:table' arguments to be bound."
@@ -396,25 +391,26 @@ the body.")
 
 CONFIG is the available configuration context.
 PROJECT-TYPE is the project type for parsing (e.g., org, JSON, etc.).
-OBJ is the object that is requesting the parse, so parsing can be specialised for that object.")
+OBJ is the object (or class) that is requesting the parse, so parsing can be specialised for that object.")
+
+(defun gtde--get-statuses-for-type (config type)
+  "Get available item statuses for TYPE in CONFIG."
+  (alist-get type (oref config statuses) nil nil #'equal))
 
 (cl-defmethod gtde--parse-from-raw-for (pt (_obj (subclass gtde--project)) (_class (subclass gtde--status)) config text)
-  (or (--first (equal text (oref it display)) (oref config project-statuses)) (signal 'gtde--unknown-project-status text)))
+  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config "project")) (signal 'gtde--unknown-status `(gtde--project . ,text))))
 
 (cl-defmethod gtde--parse-from-raw-for (pt (_obj (subclass gtde--next-action)) (_class (subclass gtde--status)) config text)
-  (or (--first (equal text (oref it display)) (oref config action-statuses)) (signal 'gtde--unknown-action-status text)))
+  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config "next_action")) (signal 'gtde--unknown-status `(gtde--next-action . ,text))))
 
 (cl-defmethod gtde--parse-from-raw-for (pt (_obj (subclass gtde--waiting-for)) (_class (subclass gtde--status)) config text)
-  (or (--first (equal text (oref it display)) (oref config waiting-for-statuses)) (signal 'gtde--unknown-waiting-for-status text)))
+  (or (--first (equal text (oref it display)) (gtde--get-statuses-for-type config "waiting_for")) (signal 'gtde--unknown-status `(gtde--waiting-for . ,text))))
 
 (cl-defgeneric gtde--parse-from-raw (project-type class config text)
   "Parse an instance of CLASS from TEXT.
 
 CONFIG is the available configuration context.
 PROJECT-TYPE is the project type for parsing (e.g., org, JSON, etc.).")
-
-(cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--project-status)) config text)
-  (or (--first (equal text (oref it display)) (oref config project-statuses)) (signal 'gtde--unknown-project-status text)))
 
 (cl-defmethod gtde--parse-from-raw (_pt (_obj (subclass gtde--context)) config text)
   (let* ((context-tag-re (oref config context-tag-regex))
@@ -463,9 +459,9 @@ PROJECT-TYPE is the current project type.")
          (waiting-for-statuses (gtde--parse-statuses #'gtde--waiting-for-status waiting-for-statuses-raw))
          (context-tag-re (gtde--get-prop pt "GTDE_CONTEXT_TAG_REGEX" props)))
     (cl-call-next-method pt obj (-concat args (list
-                                               :project-statuses project-statuses
-                                               :action-statuses action-statuses
-                                               :waiting-for-statuses waiting-for-statuses
+                                               :statuses `(("project" . ,project-statuses)
+                                                           ("next_action" . ,action-statuses)
+                                                           ("waiting_for" . ,waiting-for-statuses))
                                                :context-tag-regex context-tag-re))
                        props)))
 

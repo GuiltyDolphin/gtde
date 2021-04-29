@@ -114,7 +114,7 @@ BODY is the test body."
       (should (equal (list (gtde--project-status :display "ACTIVE" :is-active t)
                            (gtde--project-status :display "COMPLETE" :is-active nil)
                            (gtde--project-status :display "CANCELLED" :is-active nil))
-                     (oref config project-statuses)))
+                     (gtde--get-statuses-for-type config "project")))
 
       ;; testing project
       (should (equal 'gtde--project (eieio-object-class project)))
@@ -153,8 +153,8 @@ BODY is the test body."
 
 (ert-deftest gtde-oo-test:parse-from-raw ()
   "Tests for `gtde--parse-from-raw'."
-  (let ((config1 (gtde--config :project-statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@\\(.*\\)"))
-        (config2 (gtde--config :project-statuses (list (gtde--project-status :display "ACTIVE")) :context-tag-regex "@.*")))
+  (let ((config1 (gtde--config :statuses `(("project" . ,(list (gtde--project-status :display "ACTIVE")))) :context-tag-regex "@\\(.*\\)"))
+        (config2 (gtde--config :statuses `(("project" . ,(list (gtde--project-status :display "ACTIVE")))) :context-tag-regex "@.*")))
     (should (equal (gtde--context :name "test") (gtde--parse-from-raw 'org #'gtde--context config1 "@test")))
     (should (equal (gtde--context :name "@test") (gtde--parse-from-raw 'org #'gtde--context config2 "@test")))))
 
@@ -218,8 +218,33 @@ BODY is the test body."
       (should-error (gtde--build-db-from-files pt (list fvar)) :type 'gtde--no-such-file))))
 
 (gtde-test--test-each-project-type unknown-project-status '(org json) pt
+  "An unknown project status is specified (loaded from file)."
+  (let ((res (should-error (gtde--build-db-from-files pt (list (gtde-test--find-test-case-file pt "04-unknown-status"))) :type 'gtde--unknown-status)))
+    (should (equal (cadr res) 'gtde--project))
+    (should (equal (cddr res) "NOTVALID"))))
+
+(gtde-test--test-each-project-type unknown-project-status-2 '(org json) pt
   "An unknown project status is specified."
-  (should-error (gtde--build-db-from-files pt (list (gtde-test--find-test-case-file pt "04-unknown-status"))) :type 'gtde--unknown-project-status))
+  (let* ((config (gtde--config :statuses `(("project" . ,(list (gtde--status :display "DONE" :is-active t))))))
+         (res (should-error (gtde--parse-from-raw-for pt 'gtde--next-action 'gtde--status config "TODO") :type 'gtde--unknown-status)))
+    (should (equal (cadr res) 'gtde--next-action))
+    (should (equal (cddr res) "TODO"))))
+
+(gtde-test--test-each-project-type unknown-action-status '(org json) pt
+  "An unknown action status is specified."
+  (let* ((config (gtde--config :statuses `(("next_action" . ,(list (gtde--status :display "ACTION" :is-active t))))))
+         (res (should-error (gtde--parse-from-raw-for pt 'gtde--next-action 'gtde--status config "TEST") :type 'gtde--unknown-status)))
+    (should (equal (cadr res) 'gtde--next-action))
+    (should (equal (cddr res) "TEST"))))
+
+(gtde-test--test-each-project-type unknown-waiting-for-status '(org json) pt
+  "An unknown waiting for status is specified.
+
+The NEXT status is specified for next actions, but not waiting fors, so should not be accepted as a waiting for status."
+  (let* ((config (gtde--config :statuses `(("next_action" . ,(list (gtde--status :display "NEXT" :is-active t))) ("waiting_for" . ,(list (gtde--status :display "WAITING" :is-active t))))))
+         (res (should-error (gtde--parse-from-raw-for pt 'gtde--waiting-for 'gtde--status config "NEXT") :type 'gtde--unknown-status)))
+    (should (equal (cadr res) 'gtde--waiting-for))
+    (should (equal (cddr res) "NEXT"))))
 
 
 (provide 'gtde-oo-tests)
